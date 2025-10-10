@@ -70,37 +70,11 @@
         </Compile>
     </ItemGroup>
     <ItemGroup>
-        <!-- Models -->
-        <Compile Include="Models\Enumerations.cs" />
-        <Compile Include="Models\OperationResult.cs" />
-        <Compile Include="Models\ProgressInfo.cs" />
-        <Compile Include="Models\MemoryId.cs" />
-        <Compile Include="Models\ChipInfo.cs" />
-        <Compile Include="Models\Settings.cs" />
-        <!-- Interfaces -->
-        <Compile Include="Interfaces\IHardware.cs" />
-        <Compile Include="Interfaces\ISpiProtocol.cs" />
-        <Compile Include="Interfaces\II2CProtocol.cs" />
-        <Compile Include="Interfaces\IMicrowireProtocol.cs" />
-        <Compile Include="Interfaces\IServices.cs" />
         <!-- ViewModels -->
         <Compile Include="ViewModels\ViewModelBase.cs" />
         <Compile Include="ViewModels\MainViewModel.cs" />
         <!-- Commands -->
         <Compile Include="Commands\RelayCommand.cs" />
-        <!-- Utilities -->
-        <Compile Include="Utilities\BitOperations.cs" />
-        <!-- Logging -->
-        <Compile Include="Logging\Logger.cs" />
-        <!-- Native Interop -->
-        <Compile Include="NativeInterop\CH341Dll.cs" />
-        <!-- Hardware -->
-        <Compile Include="Hardware\HardwareBase.cs" />
-        <Compile Include="Hardware\CH341Hardware.cs" />
-        <!-- Protocols -->
-        <Compile Include="Protocols\Spi25Protocol.cs" />
-        <!-- Services -->
-        <Compile Include="Services\ProgrammerService.cs" />
         <!-- Properties -->
         <Compile Include="Properties\AssemblyInfo.cs">
             <SubType>Code</SubType>
@@ -121,6 +95,12 @@
         <None Include="NLog.config">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\AuroraFlasher.Lib\AuroraFlasher.Lib.csproj">
+            <Project>{F8B3E8C2-3A4D-4E2F-9B1C-5D6E7F8A9B0C}</Project>
+            <Name>AuroraFlasher.Lib</Name>
+        </ProjectReference>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 </Project>

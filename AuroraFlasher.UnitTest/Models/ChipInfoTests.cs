@@ -3,7 +3,7 @@ using AuroraFlasher.Models;
 using System;
 using System.ComponentModel;
 
-namespace AuroraFlasher.Tests.Models
+namespace AuroraFlasher.UnitTest.Models
 {
     [TestClass]
     public class ChipInfoTests

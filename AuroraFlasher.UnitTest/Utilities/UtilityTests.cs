@@ -2,7 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using AuroraFlasher.Utilities;
 using System;
 
-namespace AuroraFlasher.Tests.Utilities
+namespace AuroraFlasher.UnitTest.Utilities
 {
     [TestClass]
     public class BitOperationsTests

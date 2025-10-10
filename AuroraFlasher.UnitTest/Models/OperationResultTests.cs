@@ -2,7 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using AuroraFlasher.Models;
 using System;
 
-namespace AuroraFlasher.Tests.Models
+namespace AuroraFlasher.UnitTest.Models
 {
     [TestClass]
     public class OperationResultTests

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{F8B3E8C2-3A4D-4E2F-9B1C-5D6E7F8A9B0C}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>AuroraFlasher</RootNamespace>
+    <AssemblyName>AuroraFlasher.Lib</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <LangVersion>8.0</LangVersion>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="NLog, Version=5.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
+      <HintPath>..\packages\NLog.5.3.4\lib\net46\NLog.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Models -->
+    <Compile Include="Models\ChipInfo.cs" />
+    <Compile Include="Models\Enumerations.cs" />
+    <Compile Include="Models\MemoryId.cs" />
+    <Compile Include="Models\OperationResult.cs" />
+    <Compile Include="Models\ProgressInfo.cs" />
+    <Compile Include="Models\Settings.cs" />
+    <!-- Interfaces -->
+    <Compile Include="Interfaces\IHardware.cs" />
+    <Compile Include="Interfaces\II2CProtocol.cs" />
+    <Compile Include="Interfaces\IMicrowireProtocol.cs" />
+    <Compile Include="Interfaces\ISpiProtocol.cs" />
+    <Compile Include="Interfaces\IServices.cs" />
+    <!-- Utilities -->
+    <Compile Include="Utilities\BitOperations.cs" />
+    <!-- Logging -->
+    <Compile Include="Logging\Logger.cs" />
+    <!-- Native Interop -->
+    <Compile Include="NativeInterop\CH341Dll.cs" />
+    <!-- Hardware -->
+    <Compile Include="Hardware\HardwareBase.cs" />
+    <Compile Include="Hardware\CH341Hardware.cs" />
+    <!-- Protocols -->
+    <Compile Include="Protocols\Spi25Protocol.cs" />
+    <!-- Services -->
+    <Compile Include="Services\ProgrammerService.cs" />
+    <!-- Properties -->
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

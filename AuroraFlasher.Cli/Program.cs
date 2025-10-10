@@ -7,7 +7,7 @@ using AuroraFlasher.Logging;
 using AuroraFlasher.Models;
 using AuroraFlasher.Services;
 
-namespace AuroraFlasher.ConsoleTest
+namespace AuroraFlasher.Cli
 {
     class Program
     {

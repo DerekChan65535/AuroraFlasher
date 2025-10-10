@@ -1,6 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11104.47 d18.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuroraFlasher", "AuroraFlasher\AuroraFlasher.csproj", "{0545E665-8370-4F9D-B2EC-FA598A322188}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuroraFlasher.Tests", "AuroraFlasher.Tests\AuroraFlasher.Tests.csproj", "{8EDF4429-251A-416D-BB68-93F227191BCF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuroraFlasher.ConsoleTest", "AuroraFlasher.ConsoleTest\AuroraFlasher.ConsoleTest.csproj", "{B8F9D8E2-3C4A-4F2B-8E1C-9D3A7F6E5C4B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +19,16 @@ Global
 		{0545E665-8370-4F9D-B2EC-FA598A322188}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0545E665-8370-4F9D-B2EC-FA598A322188}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0545E665-8370-4F9D-B2EC-FA598A322188}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8EDF4429-251A-416D-BB68-93F227191BCF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EDF4429-251A-416D-BB68-93F227191BCF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EDF4429-251A-416D-BB68-93F227191BCF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EDF4429-251A-416D-BB68-93F227191BCF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8F9D8E2-3C4A-4F2B-8E1C-9D3A7F6E5C4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8F9D8E2-3C4A-4F2B-8E1C-9D3A7F6E5C4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8F9D8E2-3C4A-4F2B-8E1C-9D3A7F6E5C4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8F9D8E2-3C4A-4F2B-8E1C-9D3A7F6E5C4B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

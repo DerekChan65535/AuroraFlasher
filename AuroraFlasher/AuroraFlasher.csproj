@@ -14,6 +14,7 @@
         <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
         <WarningLevel>4</WarningLevel>
         <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+        <LangVersion>8.0</LangVersion>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
         <PlatformTarget>AnyCPU</PlatformTarget>
@@ -45,6 +46,10 @@
         <Reference Include="WindowsBase"/>
         <Reference Include="PresentationCore"/>
         <Reference Include="PresentationFramework"/>
+        <Reference Include="NLog, Version=5.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
+            <HintPath>..\packages\NLog.5.3.4\lib\net46\NLog.dll</HintPath>
+            <Private>True</Private>
+        </Reference>
     </ItemGroup>
     <ItemGroup>
         <ApplicationDefinition Include="App.xaml">
@@ -65,6 +70,37 @@
         </Compile>
     </ItemGroup>
     <ItemGroup>
+        <!-- Models -->
+        <Compile Include="Models\Enumerations.cs" />
+        <Compile Include="Models\OperationResult.cs" />
+        <Compile Include="Models\ProgressInfo.cs" />
+        <Compile Include="Models\MemoryId.cs" />
+        <Compile Include="Models\ChipInfo.cs" />
+        <Compile Include="Models\Settings.cs" />
+        <!-- Interfaces -->
+        <Compile Include="Interfaces\IHardware.cs" />
+        <Compile Include="Interfaces\ISpiProtocol.cs" />
+        <Compile Include="Interfaces\II2CProtocol.cs" />
+        <Compile Include="Interfaces\IMicrowireProtocol.cs" />
+        <Compile Include="Interfaces\IServices.cs" />
+        <!-- ViewModels -->
+        <Compile Include="ViewModels\ViewModelBase.cs" />
+        <!-- Commands -->
+        <Compile Include="Commands\RelayCommand.cs" />
+        <!-- Utilities -->
+        <Compile Include="Utilities\BitOperations.cs" />
+        <!-- Logging -->
+        <Compile Include="Logging\Logger.cs" />
+        <!-- Native Interop -->
+        <Compile Include="NativeInterop\CH341Dll.cs" />
+        <!-- Hardware -->
+        <Compile Include="Hardware\HardwareBase.cs" />
+        <Compile Include="Hardware\CH341Hardware.cs" />
+        <!-- Protocols -->
+        <Compile Include="Protocols\Spi25Protocol.cs" />
+        <!-- Services -->
+        <Compile Include="Services\ProgrammerService.cs" />
+        <!-- Properties -->
         <Compile Include="Properties\AssemblyInfo.cs">
             <SubType>Code</SubType>
         </Compile>
@@ -80,6 +116,10 @@
     </ItemGroup>
     <ItemGroup>
         <None Include="App.config"/>
+        <None Include="packages.config"/>
+        <None Include="NLog.config">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 </Project>

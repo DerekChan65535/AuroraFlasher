@@ -85,6 +85,7 @@
         <Compile Include="Interfaces\IServices.cs" />
         <!-- ViewModels -->
         <Compile Include="ViewModels\ViewModelBase.cs" />
+        <Compile Include="ViewModels\MainViewModel.cs" />
         <!-- Commands -->
         <Compile Include="Commands\RelayCommand.cs" />
         <!-- Utilities -->

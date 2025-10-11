@@ -42,7 +42,6 @@ namespace AuroraFlasher.ViewModels
             {
                 if (SetProperty(ref _isConnected, value))
                 {
-                    OnPropertyChanged(nameof(CanDetect));
                     OnPropertyChanged(nameof(CanRead));
                 }
             }
@@ -56,7 +55,6 @@ namespace AuroraFlasher.ViewModels
             {
                 if (SetProperty(ref _isBusy, value))
                 {
-                    OnPropertyChanged(nameof(CanDetect));
                     OnPropertyChanged(nameof(CanRead));
                 }
             }
@@ -117,14 +115,12 @@ namespace AuroraFlasher.ViewModels
 
         #region Can Execute Properties
 
-        public bool CanDetect => IsConnected && !IsBusy;
         public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
 
         #endregion
 
         #region Commands
 
-        public ICommand DetectChipCommand { get; }
         public ICommand ReadMemoryCommand { get; }
         public ICommand ClearLogCommand { get; }
 
@@ -145,11 +141,10 @@ namespace AuroraFlasher.ViewModels
             ReadLength = "256";
 
             // Initialize commands
-            DetectChipCommand = new RelayCommand(async () => await DetectChipAsync(), () => CanDetect);
             ReadMemoryCommand = new RelayCommand(async () => await ReadMemoryAsync(), () => CanRead);
             ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty);
 
-            // Auto-enumerate on startup (will auto-connect if device present)
+            // Auto-enumerate on startup (will auto-connect and auto-detect if device present)
             Task.Run(async () => await EnumerateDevicesAsync());
         }
 
@@ -251,6 +246,9 @@ namespace AuroraFlasher.ViewModels
                     StatusMessage = $"Connected to {SelectedDevice.Name}";
                     DeviceInfo = $"{SelectedDevice.Name}\nType: {SelectedDevice.Type}\nStatus: Connected";
                     AppendLog($"Connected successfully");
+
+                    // Automatically detect chip after connection
+                    await DetectChipAsync();
                 }
                 else
                 {

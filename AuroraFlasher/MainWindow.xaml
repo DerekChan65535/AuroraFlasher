@@ -37,13 +37,8 @@
                               Width="200" Margin="0,0,20,0"
                               IsEnabled="False"/>
                     
-                    <TextBlock Text="(Auto-connect enabled)" VerticalAlignment="Center" 
+                    <TextBlock Text="(Auto-connect and auto-detect enabled)" VerticalAlignment="Center" 
                                Margin="0,0,20,0" FontStyle="Italic" Foreground="Gray"/>
-                    
-                    <Button Content="Detect Chip" Command="{Binding DetectChipCommand}" 
-                            Width="120" Height="30" Margin="0,0,10,0"
-                            Background="#4CAF50" Foreground="White"
-                            FontWeight="Bold"/>
                 </StackPanel>
                 
                 <!-- Read Controls -->

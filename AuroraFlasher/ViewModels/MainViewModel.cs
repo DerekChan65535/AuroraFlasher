@@ -81,11 +81,11 @@ namespace AuroraFlasher.ViewModels
             set => SetProperty(ref _logOutput, value);
         }
 
-        private string _hexOutput;
-        public string HexOutput
+        private ObservableCollection<HexLineData> _hexLines;
+        public ObservableCollection<HexLineData> HexLines
         {
-            get => _hexOutput;
-            set => SetProperty(ref _hexOutput, value);
+            get => _hexLines;
+            set => SetProperty(ref _hexLines, value);
         }
 
         private string _readAddress;
@@ -157,7 +157,7 @@ namespace AuroraFlasher.ViewModels
             DeviceInfo = "No device connected";
             ChipInfo = "No chip detected";
             LogOutput = string.Empty;
-            HexOutput = string.Empty;
+            HexLines = new ObservableCollection<HexLineData>();
             ReadAddress = "0x000000";
             ReadLength = "256";
 
@@ -303,7 +303,7 @@ namespace AuroraFlasher.ViewModels
                 StatusMessage = "Disconnected";
                 DeviceInfo = "No device connected";
                 ChipInfo = "No chip detected";
-                HexOutput = string.Empty;
+                HexLines.Clear();
                 AppendLog("Disconnected successfully");
             }
             catch (Exception ex)
@@ -418,7 +418,7 @@ namespace AuroraFlasher.ViewModels
                 if (result.Success && result.Data != null)
                 {
                     StatusMessage = $"Read {result.Data.Length} bytes successfully";
-                    HexOutput = FormatHexDump(result.Data, address);
+                    UpdateHexDump(result.Data, address);
                     AppendLog($"Read {result.Data.Length} bytes from 0x{address:X6}");
                     ProgressText = $"Complete - {result.Data.Length:N0} bytes";
                 }
@@ -459,44 +459,59 @@ namespace AuroraFlasher.ViewModels
             return uint.TryParse(cleaned, System.Globalization.NumberStyles.HexNumber, null, out value);
         }
 
-        private string FormatHexDump(byte[] data, uint startAddress)
+        /// <summary>
+        /// Update hex dump display with virtualized line-by-line rendering.
+        /// This method populates HexLines collection for ListView virtualization.
+        /// </summary>
+        private void UpdateHexDump(byte[] data, uint startAddress)
         {
-            var sb = new StringBuilder();
-            int bytesPerLine = 16;
-
-            for (int i = 0; i < data.Length; i += bytesPerLine)
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                // Address
-                sb.AppendFormat("{0:X4}:  ", startAddress + i);
+                HexLines.Clear();
 
-                // Hex bytes
-                int lineLength = Math.Min(bytesPerLine, data.Length - i);
-                for (int j = 0; j < lineLength; j++)
+                int bytesPerLine = 16;
+                var lines = new System.Collections.Generic.List<HexLineData>();
+
+                for (int i = 0; i < data.Length; i += bytesPerLine)
                 {
-                    sb.AppendFormat("{0:X2} ", data[i + j]);
-                    if (j == 7) sb.Append(" "); // Extra space in middle
+                    var sb = new StringBuilder();
+
+                    // Address
+                    sb.AppendFormat("{0:X4}:  ", startAddress + i);
+
+                    // Hex bytes
+                    int lineLength = Math.Min(bytesPerLine, data.Length - i);
+                    for (int j = 0; j < lineLength; j++)
+                    {
+                        sb.AppendFormat("{0:X2} ", data[i + j]);
+                        if (j == 7) sb.Append(" "); // Extra space in middle
+                    }
+
+                    // Padding if incomplete line
+                    if (lineLength < bytesPerLine)
+                    {
+                        int padding = (bytesPerLine - lineLength) * 3;
+                        if (lineLength <= 7) padding++; // Account for middle space
+                        sb.Append(new string(' ', padding));
+                    }
+
+                    // ASCII representation
+                    sb.Append("  ");
+                    for (int j = 0; j < lineLength; j++)
+                    {
+                        byte b = data[i + j];
+                        sb.Append(b >= 32 && b <= 126 ? (char)b : '.');
+                    }
+
+                    lines.Add(new HexLineData(sb.ToString()));
                 }
 
-                // Padding if incomplete line
-                if (lineLength < bytesPerLine)
+                // Batch add all lines to collection (more efficient than adding one by one)
+                foreach (var line in lines)
                 {
-                    int padding = (bytesPerLine - lineLength) * 3;
-                    if (lineLength <= 7) padding++; // Account for middle space
-                    sb.Append(new string(' ', padding));
+                    HexLines.Add(line);
                 }
-
-                // ASCII representation
-                sb.Append("  ");
-                for (int j = 0; j < lineLength; j++)
-                {
-                    byte b = data[i + j];
-                    sb.Append(b >= 32 && b <= 126 ? (char)b : '.');
-                }
-
-                sb.AppendLine();
-            }
-
-            return sb.ToString();
+            });
         }
 
         private void AppendLog(string message)

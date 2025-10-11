@@ -79,6 +79,8 @@
         <Compile Include="ViewModels\MainViewModel.cs" />
         <!-- Commands -->
         <Compile Include="Commands\RelayCommand.cs" />
+        <!-- Models -->
+        <Compile Include="Models\HexLineData.cs" />
         <!-- Utilities -->
         <Compile Include="Utilities\UsbDeviceNotificationListener.cs" />
         <!-- Properties -->

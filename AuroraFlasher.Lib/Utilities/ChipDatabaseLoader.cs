@@ -167,6 +167,9 @@ namespace AuroraFlasher.Utilities
                 protocolType = ProtocolType.SPI; // Default to SPI
             }
 
+            // Parse voltage from chip name if specified (e.g., "W25Q80BW_1.8V")
+            int voltage = ParseVoltageFromName(chipName);
+
             // Create ChipInfo object
             var chip = new ChipInfo
             {
@@ -180,12 +183,44 @@ namespace AuroraFlasher.Utilities
                 BlockSize = (protocolType == ProtocolType.SPI) ? 65536 : 0,
                 ManufacturerId = manufacturerId,
                 DeviceId = deviceId,
-                Voltage = 3300, // Default 3.3V
+                Voltage = voltage,
                 Supports4ByteAddress = false,
                 Description = $"{manufacturerName} {chipName}"
             };
 
             return chip;
+        }
+
+        /// <summary>
+        /// Parses voltage from chip name if specified (e.g., "W25Q80BW_1.8V" → 1800).
+        /// Returns voltage in millivolts. Defaults to 3300 (3.3V) if not specified.
+        /// </summary>
+        private static int ParseVoltageFromName(string chipName)
+        {
+            if (string.IsNullOrEmpty(chipName))
+                return 3300;
+
+            // Common voltage patterns in chip names: "_1.8V", "_2.5V", "_3.3V", etc.
+            var voltagePatterns = new Dictionary<string, int>
+            {
+                { "_1.8V", 1800 },
+                { "_2.5V", 2500 },
+                { "_3.3V", 3300 },
+                { "_5V", 5000 }
+            };
+
+            // Use IndexOf for case-insensitive search (.NET Framework 4.8 compatible)
+            string chipNameUpper = chipName.ToUpperInvariant();
+            foreach (var pattern in voltagePatterns)
+            {
+                if (chipNameUpper.IndexOf(pattern.Key.ToUpperInvariant(), StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return pattern.Value;
+                }
+            }
+
+            // Default to 3.3V if no voltage specified in name
+            return 3300;
         }
 
         /// <summary>

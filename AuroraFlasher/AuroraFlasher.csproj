@@ -79,6 +79,8 @@
         <Compile Include="ViewModels\MainViewModel.cs" />
         <!-- Commands -->
         <Compile Include="Commands\RelayCommand.cs" />
+        <!-- Utilities -->
+        <Compile Include="Utilities\UsbDeviceNotificationListener.cs" />
         <!-- Properties -->
         <Compile Include="Properties\AssemblyInfo.cs">
             <SubType>Code</SubType>

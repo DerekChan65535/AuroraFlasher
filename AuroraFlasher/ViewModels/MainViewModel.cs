@@ -22,6 +22,9 @@ namespace AuroraFlasher.ViewModels
         private readonly ProgrammerService _service;
         private CancellationTokenSource _cancellationTokenSource;
 
+        // Known VID for WCH (CH341 manufacturer)
+        private const string CH341_VENDOR_ID = "1A86";
+
         #region Properties
 
         private string _statusMessage;
@@ -39,8 +42,6 @@ namespace AuroraFlasher.ViewModels
             {
                 if (SetProperty(ref _isConnected, value))
                 {
-                    OnPropertyChanged(nameof(CanConnect));
-                    OnPropertyChanged(nameof(CanDisconnect));
                     OnPropertyChanged(nameof(CanDetect));
                     OnPropertyChanged(nameof(CanRead));
                 }
@@ -55,8 +56,6 @@ namespace AuroraFlasher.ViewModels
             {
                 if (SetProperty(ref _isBusy, value))
                 {
-                    OnPropertyChanged(nameof(CanConnect));
-                    OnPropertyChanged(nameof(CanDisconnect));
                     OnPropertyChanged(nameof(CanDetect));
                     OnPropertyChanged(nameof(CanRead));
                 }
@@ -118,8 +117,6 @@ namespace AuroraFlasher.ViewModels
 
         #region Can Execute Properties
 
-        public bool CanConnect => !IsConnected && !IsBusy;
-        public bool CanDisconnect => IsConnected && !IsBusy;
         public bool CanDetect => IsConnected && !IsBusy;
         public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
 
@@ -127,8 +124,6 @@ namespace AuroraFlasher.ViewModels
 
         #region Commands
 
-        public ICommand ConnectCommand { get; }
-        public ICommand DisconnectCommand { get; }
         public ICommand DetectChipCommand { get; }
         public ICommand ReadMemoryCommand { get; }
         public ICommand ClearLogCommand { get; }
@@ -150,19 +145,17 @@ namespace AuroraFlasher.ViewModels
             ReadLength = "256";
 
             // Initialize commands
-            ConnectCommand = new RelayCommand(async () => await ConnectAsync(), () => CanConnect);
-            DisconnectCommand = new RelayCommand(async () => await DisconnectAsync(), () => CanDisconnect);
             DetectChipCommand = new RelayCommand(async () => await DetectChipAsync(), () => CanDetect);
             ReadMemoryCommand = new RelayCommand(async () => await ReadMemoryAsync(), () => CanRead);
             ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty);
 
-            // Auto-enumerate on startup
+            // Auto-enumerate on startup (will auto-connect if device present)
             Task.Run(async () => await EnumerateDevicesAsync());
         }
 
         #region Methods
 
-        private async Task EnumerateDevicesAsync()
+        private async Task EnumerateDevicesAsync(bool checkForAutoConnect = true)
         {
             try
             {
@@ -189,11 +182,35 @@ namespace AuroraFlasher.ViewModels
                             AppendLog("No hardware found");
                         }
                     });
+
+                    // Check if CH341 device is already connected at startup
+                    // Only do this check when explicitly requested (e.g., app startup or USB plug event)
+                    // to avoid infinite loop with AutoConnectAsync
+                    if (checkForAutoConnect)
+                    {
+                        await CheckForAlreadyConnectedDeviceAsync();
+                    }
                 }
             }
             catch (Exception ex)
             {
                 AppendLog($"Error enumerating hardware: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Checks if a CH341 device is already connected when the app starts
+        /// </summary>
+        private async Task CheckForAlreadyConnectedDeviceAsync()
+        {
+            // Only auto-connect if we have a CH341 device available and we're not already connected
+            if (SelectedDevice?.Type == HardwareType.CH341 && !IsConnected && !IsBusy)
+            {
+                // Wait a moment to let the UI initialize
+                await Task.Delay(500);
+
+                AppendLog("CH341 device detected at startup, attempting auto-connect...");
+                await AutoConnectAsync();
             }
         }
 
@@ -442,6 +459,91 @@ namespace AuroraFlasher.ViewModels
             {
                 LogOutput += $"[{DateTime.Now:HH:mm:ss}] {message}\n";
             });
+        }
+
+        #endregion
+
+        #region USB Auto-Detection
+
+        /// <summary>
+        /// Called when a USB device is connected
+        /// </summary>
+        public async void OnUsbDeviceArrived(string vendorId, string productId)
+        {
+            // Check if this is a CH341 device (VID 1A86)
+            if (!string.Equals(vendorId, CH341_VENDOR_ID, StringComparison.OrdinalIgnoreCase))
+            {
+                return; // Not a CH341 device, ignore
+            }
+
+            Logger.Info($"CH341 device detected (VID:{vendorId}, PID:{productId})");
+            AppendLog($"CH341 device detected (VID:{vendorId}, PID:{productId})");
+
+            // If already connected, ignore
+            if (IsConnected)
+            {
+                Logger.Debug("Already connected to a device, ignoring new arrival");
+                return;
+            }
+
+            // Wait a moment for the device to fully initialize
+            await Task.Delay(500);
+
+            // Try to auto-connect
+            await AutoConnectAsync();
+        }
+
+        /// <summary>
+        /// Called when a USB device is disconnected
+        /// </summary>
+        public async void OnUsbDeviceRemoved(string vendorId, string productId)
+        {
+            // Check if this is a CH341 device
+            if (!string.Equals(vendorId, CH341_VENDOR_ID, StringComparison.OrdinalIgnoreCase))
+            {
+                return; // Not a CH341 device, ignore
+            }
+
+            Logger.Info($"CH341 device removed (VID:{vendorId}, PID:{productId})");
+            AppendLog($"CH341 device removed (VID:{vendorId}, PID:{productId})");
+
+            // If connected, disconnect
+            if (IsConnected)
+            {
+                await DisconnectAsync();
+            }
+        }
+
+        private async Task AutoConnectAsync()
+        {
+            try
+            {
+                AppendLog("Attempting auto-connect to CH341 device...");
+
+                // Re-enumerate hardware to find newly connected device
+                // Pass false to prevent infinite loop - don't auto-check during auto-connect
+                await EnumerateDevicesAsync(checkForAutoConnect: false);
+
+                // If we have a device selected and not already connected, connect
+                if (SelectedDevice != null && !IsConnected && !IsBusy)
+                {
+                    await ConnectAsync();
+
+                    if (IsConnected)
+                    {
+                        AppendLog("Auto-connect successful!");
+                    }
+                }
+                else
+                {
+                    AppendLog("Auto-connect failed: No device available");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error during auto-connect");
+                AppendLog($"Auto-connect error: {ex.Message}");
+            }
         }
 
         #endregion

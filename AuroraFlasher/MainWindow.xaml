@@ -35,12 +35,10 @@
                               SelectedItem="{Binding SelectedDevice}"
                               DisplayMemberPath="Name"
                               Width="200" Margin="0,0,20,0"
-                              IsEnabled="{Binding CanConnect}"/>
+                              IsEnabled="False"/>
                     
-                    <Button Content="Connect" Command="{Binding ConnectCommand}" 
-                            Width="100" Height="30" Margin="0,0,10,0"/>
-                    <Button Content="Disconnect" Command="{Binding DisconnectCommand}" 
-                            Width="100" Height="30" Margin="0,0,20,0"/>
+                    <TextBlock Text="(Auto-connect enabled)" VerticalAlignment="Center" 
+                               Margin="0,0,20,0" FontStyle="Italic" Foreground="Gray"/>
                     
                     <Button Content="Detect Chip" Command="{Binding DetectChipCommand}" 
                             Width="120" Height="30" Margin="0,0,10,0"

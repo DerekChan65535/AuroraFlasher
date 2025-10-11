@@ -253,10 +253,7 @@ namespace AuroraFlasher.UnitTest.Protocols
 
             _mockHardware.Setup(h => h.SpiSendCommandAsync(It.IsAny<byte>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult.SuccessResult());
-            _mockHardware.Setup(h => h.SpiWriteWithAddressAsync(
-                It.IsAny<byte>(),
-                It.IsAny<uint>(),
-                It.IsAny<int>(),
+            _mockHardware.Setup(h => h.SpiWriteAsync(
                 It.IsAny<byte[]>(),
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult.SuccessResult());
@@ -313,10 +310,7 @@ namespace AuroraFlasher.UnitTest.Protocols
 
             _mockHardware.Setup(h => h.SpiSendCommandAsync(It.IsAny<byte>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult.SuccessResult());
-            _mockHardware.Setup(h => h.SpiWriteWithAddressAsync(
-                It.IsAny<byte>(),
-                It.IsAny<uint>(),
-                It.IsAny<int>(),
+            _mockHardware.Setup(h => h.SpiWriteAsync(
                 It.IsAny<byte[]>(),
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult.SuccessResult());
@@ -341,10 +335,7 @@ namespace AuroraFlasher.UnitTest.Protocols
 
             _mockHardware.Setup(h => h.SpiSendCommandAsync(It.IsAny<byte>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult.SuccessResult());
-            _mockHardware.Setup(h => h.SpiWriteWithAddressAsync(
-                It.IsAny<byte>(),
-                It.IsAny<uint>(),
-                It.IsAny<int>(),
+            _mockHardware.Setup(h => h.SpiWriteAsync(
                 It.IsAny<byte[]>(),
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult.SuccessResult());

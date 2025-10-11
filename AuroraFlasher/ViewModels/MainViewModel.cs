@@ -111,6 +111,27 @@ namespace AuroraFlasher.ViewModels
             set => SetProperty(ref _selectedDevice, value);
         }
 
+        private bool _isOperationInProgress;
+        public bool IsOperationInProgress
+        {
+            get => _isOperationInProgress;
+            set => SetProperty(ref _isOperationInProgress, value);
+        }
+
+        private double _progressPercentage;
+        public double ProgressPercentage
+        {
+            get => _progressPercentage;
+            set => SetProperty(ref _progressPercentage, value);
+        }
+
+        private string _progressText;
+        public string ProgressText
+        {
+            get => _progressText;
+            set => SetProperty(ref _progressText, value);
+        }
+
         #endregion
 
         #region Can Execute Properties
@@ -305,11 +326,17 @@ namespace AuroraFlasher.ViewModels
             try
             {
                 _cancellationTokenSource = new CancellationTokenSource();
-                var result = await _service.DetectChipAsync(ProtocolType.SPI, _cancellationTokenSource.Token);
+                
+                // Use candidate detection API (smart selection handles multiple candidates automatically)
+                var result = await _service.DetectChipCandidatesAsync(ProtocolType.SPI, _cancellationTokenSource.Token);
 
-                if (result.Success && result.Data != null)
+                if (result.Success && result.Data != null && result.Data.Count > 0)
                 {
-                    var chip = result.Data;
+                    // Service already selected the best chip using smart strategy
+                    var chip = result.Data[0];
+                    AppendLog($"Chip detected: {chip.Name} ({chip.SizeKB}KB)");
+
+                    // Display chip info
                     StatusMessage = $"Chip detected: {chip.Name}";
                     
                     var chipInfoBuilder = new StringBuilder();
@@ -324,7 +351,11 @@ namespace AuroraFlasher.ViewModels
                     chipInfoBuilder.AppendLine($"Device ID: 0x{chip.DeviceId:X4}");
 
                     ChipInfo = chipInfoBuilder.ToString();
-                    AppendLog($"Chip detected: {chip.Name} ({chip.SizeKB}KB)");
+                    
+                    // Keep reasonable default read length (64KB max for UI display)
+                    // User can read full chip in chunks if needed
+                    ReadLength = "65536";
+                    AppendLog($"Default read size set to 64KB (adjust as needed, chip is {chip.SizeKB}KB total)");
                 }
                 else
                 {
@@ -349,6 +380,9 @@ namespace AuroraFlasher.ViewModels
         private async Task ReadMemoryAsync()
         {
             IsBusy = true;
+            IsOperationInProgress = true;
+            ProgressPercentage = 0;
+            ProgressText = "Starting...";
             StatusMessage = "Reading memory...";
 
             try
@@ -361,29 +395,39 @@ namespace AuroraFlasher.ViewModels
                     return;
                 }
 
-                // Parse length
-                if (!int.TryParse(ReadLength, out int length) || length <= 0 || length > 65536)
+                // Parse length (support up to 64MB for large chips)
+                if (!int.TryParse(ReadLength, out int length) || length <= 0 || length > 67108864)
                 {
-                    StatusMessage = "Invalid length (must be 1-65536)";
-                    AppendLog("Invalid length. Must be between 1 and 65536 bytes");
+                    StatusMessage = "Invalid length (must be 1-67108864 bytes / 64MB)";
+                    AppendLog("Invalid length. Must be between 1 and 67108864 bytes (64MB max)");
                     return;
                 }
 
                 _cancellationTokenSource = new CancellationTokenSource();
                 AppendLog($"Reading {length} bytes from 0x{address:X6}...");
 
-                var result = await _service.ReadMemoryAsync(address, length, null, _cancellationTokenSource.Token);
+                // Create progress reporter
+                var progress = new Progress<ProgressInfo>(progressInfo =>
+                {
+                    ProgressPercentage = progressInfo.Percentage;
+                    ProgressText = $"{progressInfo.Percentage:F1}% - {progressInfo.BytesProcessed:N0} / {progressInfo.TotalBytes:N0} bytes - {progressInfo.Speed / 1024:F1} KB/s";
+                    StatusMessage = $"Reading... {progressInfo.Percentage:F0}%";
+                });
+
+                var result = await _service.ReadMemoryAsync(address, length, progress, _cancellationTokenSource.Token);
 
                 if (result.Success && result.Data != null)
                 {
                     StatusMessage = $"Read {result.Data.Length} bytes successfully";
                     HexOutput = FormatHexDump(result.Data, address);
                     AppendLog($"Read {result.Data.Length} bytes from 0x{address:X6}");
+                    ProgressText = $"Complete - {result.Data.Length:N0} bytes";
                 }
                 else
                 {
                     StatusMessage = $"Read failed: {result.Message}";
                     AppendLog($"Read failed: {result.Message}");
+                    ProgressText = "Failed";
                 }
             }
             catch (Exception ex)
@@ -391,10 +435,15 @@ namespace AuroraFlasher.ViewModels
                 StatusMessage = $"Error: {ex.Message}";
                 AppendLog($"Error reading memory: {ex.Message}");
                 Logger.Error(ex, "Read error in UI");
+                ProgressText = "Error";
             }
             finally
             {
                 IsBusy = false;
+                // Keep progress bar visible for 2 seconds so user can see final status
+                await Task.Delay(2000);
+                IsOperationInProgress = false;
+                ProgressPercentage = 0;
             }
         }
 

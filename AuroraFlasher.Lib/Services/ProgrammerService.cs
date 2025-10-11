@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AuroraFlasher.Interfaces;
 using AuroraFlasher.Logging;
 using AuroraFlasher.Models;
+using AuroraFlasher.Utilities;
 
 namespace AuroraFlasher.Services
 {
@@ -20,6 +21,8 @@ namespace AuroraFlasher.Services
         private ISpiProtocol _spiProtocol;
         private II2CProtocol _i2cProtocol;
         private IMicrowireProtocol _microwireProtocol;
+        private List<ChipInfo> _chipDatabase;
+        private bool _databaseLoaded = false;
 
         public IHardware Hardware => _hardware;
         public ISpiProtocol SpiProtocol => _spiProtocol;
@@ -27,6 +30,35 @@ namespace AuroraFlasher.Services
         public IMicrowireProtocol MicrowireProtocol => _microwireProtocol;
 
         public event EventHandler<ProgressInfo> ProgressChanged;
+
+        /// <summary>
+        /// Loads chip database from chiplist.xml. Called automatically on first use.
+        /// </summary>
+        private void EnsureDatabaseLoaded()
+        {
+            if (_databaseLoaded)
+                return;
+
+            Logger.Info("Loading chip database from chiplist.xml...");
+            _chipDatabase = ChipDatabaseLoader.LoadDatabase();
+
+            if (_chipDatabase.Count == 0)
+            {
+                Logger.Warn("No chips loaded from database, using minimal hardcoded fallback");
+                _chipDatabase = GetHardcodedChipDatabase();
+            }
+            else
+            {
+                // Validate database
+                if (!ChipDatabaseLoader.ValidateDatabase(_chipDatabase))
+                {
+                    Logger.Warn("Database validation found issues, but continuing with loaded data");
+                }
+            }
+
+            _databaseLoaded = true;
+            Logger.Info($"Chip database loaded: {_chipDatabase.Count} chips available");
+        }
 
         #region Hardware Management
 
@@ -136,41 +168,65 @@ namespace AuroraFlasher.Services
 
         #region Chip Detection
 
-        public async Task<OperationResult<ChipInfo>> DetectChipAsync(ProtocolType protocol, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Detects chip and returns list of possible candidates.
+        /// If only one match, returns single-item list. If multiple matches, user should select.
+        /// </summary>
+        public async Task<OperationResult<List<ChipInfo>>> DetectChipCandidatesAsync(ProtocolType protocol, CancellationToken cancellationToken = default)
         {
             try
             {
                 if (_hardware == null || !_hardware.IsConnected)
                 {
-                    Logger.Error("DetectChipAsync called but hardware not connected");
-                    return OperationResult<ChipInfo>.FailureResult("Hardware not connected");
+                    Logger.Error("DetectChipCandidatesAsync called but hardware not connected");
+                    return OperationResult<List<ChipInfo>>.FailureResult("Hardware not connected");
                 }
 
-                Logger.Info($"Detecting chip using {protocol} protocol...");
+                Logger.Info($"Detecting chip candidates using {protocol} protocol...");
 
                 switch (protocol)
                 {
                     case ProtocolType.SPI:
-                        return await DetectSpiChipAsync(cancellationToken);
+                        return await DetectSpiChipCandidatesAsync(cancellationToken);
                     
                     case ProtocolType.I2C:
                     case ProtocolType.MicroWire:
-                        Logger.Warn($"{protocol} detection not implemented in minimal version");
-                        return OperationResult<ChipInfo>.FailureResult($"{protocol} detection not implemented in minimal version");
+                        Logger.Warn($"{protocol} detection not implemented");
+                        return OperationResult<List<ChipInfo>>.FailureResult($"{protocol} detection not implemented");
                     
                     default:
                         Logger.Error($"Unknown protocol: {protocol}");
-                        return OperationResult<ChipInfo>.FailureResult($"Unknown protocol: {protocol}");
+                        return OperationResult<List<ChipInfo>>.FailureResult($"Unknown protocol: {protocol}");
                 }
             }
             catch (Exception ex)
             {
                 Logger.Error(ex, "Chip detection failed with exception");
-                return OperationResult<ChipInfo>.FailureResult($"Chip detection failed: {ex.Message}", ex);
+                return OperationResult<List<ChipInfo>>.FailureResult($"Chip detection failed: {ex.Message}", ex);
             }
         }
 
-        private async Task<OperationResult<ChipInfo>> DetectSpiChipAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Legacy method for backward compatibility. Returns first candidate.
+        /// </summary>
+        public async Task<OperationResult<ChipInfo>> DetectChipAsync(ProtocolType protocol, CancellationToken cancellationToken = default)
+        {
+            var candidatesResult = await DetectChipCandidatesAsync(protocol, cancellationToken);
+            
+            if (!candidatesResult.Success)
+            {
+                return OperationResult<ChipInfo>.FailureResult(candidatesResult.Message);
+            }
+
+            if (candidatesResult.Data.Count == 0)
+            {
+                return OperationResult<ChipInfo>.FailureResult("No chip detected");
+            }
+
+            return OperationResult<ChipInfo>.SuccessResult(candidatesResult.Data[0], candidatesResult.Message);
+        }
+
+        private async Task<OperationResult<List<ChipInfo>>> DetectSpiChipCandidatesAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -184,7 +240,7 @@ namespace AuroraFlasher.Services
                 if (!initResult.Success)
                 {
                     Logger.Error($"Failed to initialize SPI: {initResult.Message}");
-                    return OperationResult<ChipInfo>.FailureResult($"Failed to initialize SPI: {initResult.Message}");
+                    return OperationResult<List<ChipInfo>>.FailureResult($"Failed to initialize SPI: {initResult.Message}");
                 }
 
                 // Read chip ID
@@ -192,18 +248,19 @@ namespace AuroraFlasher.Services
                 if (!idResult.Success)
                 {
                     Logger.Error($"Failed to read chip ID: {idResult.Message}");
-                    return OperationResult<ChipInfo>.FailureResult($"Failed to read chip ID: {idResult.Message}");
+                    return OperationResult<List<ChipInfo>>.FailureResult($"Failed to read chip ID: {idResult.Message}");
                 }
 
                 Logger.Info($"Read chip ID - Manufacturer: 0x{idResult.Data.ManufacturerId:X2}, Device: 0x{idResult.Data.DeviceId:X4}");
 
-                // Look up chip in database
-                var chipInfo = FindChipByMemoryId(idResult.Data);
-                if (chipInfo == null)
+                // Look up chip candidates in database
+                var candidates = FindChipCandidatesByMemoryId(idResult.Data);
+                
+                if (candidates.Count == 0)
                 {
                     Logger.Warn("Chip not found in database - creating generic chip info");
                     // Unknown chip - create basic info from ID
-                    chipInfo = new ChipInfo
+                    var unknownChip = new ChipInfo
                     {
                         Name = "Unknown SPI Chip",
                         Manufacturer = GetManufacturerEnum(idResult.Data.ManufacturerId),
@@ -215,38 +272,158 @@ namespace AuroraFlasher.Services
                         PageSize = 256,
                         SectorSize = 4096,
                         BlockSize = 65536,
-                        Voltage = 3300
+                        Voltage = 3300,
+                        Description = $"Unknown chip with ID: {idResult.Data.ManufacturerId:X2}-{idResult.Data.DeviceId:X4}"
                     };
-                }
-                else
-                {
-                    Logger.Info($"Chip identified: {chipInfo.Name} ({chipInfo.Manufacturer}, {chipInfo.SizeKB}KB)");
+                    candidates.Add(unknownChip);
                 }
 
-                _spiProtocol.ChipInfo = chipInfo;
+                // Use smart selection strategy for multiple candidates
+                var selectedChip = SelectBestCandidate(candidates);
+                
+                // Set selected chip as the active chip for the protocol
+                _spiProtocol.ChipInfo = selectedChip;
 
-                string successMsg = $"Detected: {chipInfo.Name} ({chipInfo.SizeKB}KB)";
+                string successMsg = $"Detected: {selectedChip.Name} ({selectedChip.SizeKB}KB)";
                 Logger.Info(successMsg);
-                return OperationResult<ChipInfo>.SuccessResult(chipInfo, successMsg);
+
+                // Return single-item list for API compatibility
+                return OperationResult<List<ChipInfo>>.SuccessResult(new List<ChipInfo> { selectedChip }, successMsg);
             }
             catch (Exception ex)
             {
                 Logger.Error(ex, "SPI detection failed with exception");
-                return OperationResult<ChipInfo>.FailureResult($"SPI detection failed: {ex.Message}", ex);
+                return OperationResult<List<ChipInfo>>.FailureResult($"SPI detection failed: {ex.Message}", ex);
             }
+        }
+
+        /// <summary>
+        /// Smart selection strategy for multiple chip candidates.
+        /// If same size: fold names like "MX25Q128FV(JV/RV)"
+        /// If different sizes: use largest chip
+        /// Returns a single ChipInfo representing the best choice.
+        /// </summary>
+        private ChipInfo SelectBestCandidate(List<ChipInfo> candidates)
+        {
+            if (candidates == null || candidates.Count == 0)
+                return null;
+
+            if (candidates.Count == 1)
+                return candidates[0];
+
+            // Group by size
+            var sizeGroups = candidates.GroupBy(c => c.Size).OrderByDescending(g => g.Key).ToList();
+
+            if (sizeGroups.Count == 1)
+            {
+                // All candidates have same size - fold names
+                var size = sizeGroups[0].Key;
+                var chips = sizeGroups[0].ToList();
+                
+                // Use first chip as base
+                var baseChip = chips[0];
+                
+                // Create folded name
+                string foldedName = CreateFoldedName(chips);
+                
+                Logger.Info($"Multiple candidates with same size ({size} bytes), folding to: {foldedName}");
+                
+                // Clone the chip with folded name
+                var result = new ChipInfo
+                {
+                    Name = foldedName,
+                    Manufacturer = baseChip.Manufacturer,
+                    ProtocolType = baseChip.ProtocolType,
+                    SpiCommandSet = baseChip.SpiCommandSet,
+                    ManufacturerId = baseChip.ManufacturerId,
+                    DeviceId = baseChip.DeviceId,
+                    Size = baseChip.Size,
+                    PageSize = baseChip.PageSize,
+                    SectorSize = baseChip.SectorSize,
+                    BlockSize = baseChip.BlockSize,
+                    Voltage = baseChip.Voltage,
+                    Description = $"Multiple variants: {string.Join(", ", chips.Select(c => c.Name))}"
+                };
+                
+                return result;
+            }
+            else
+            {
+                // Different sizes - use largest
+                var largestGroup = sizeGroups[0]; // Already sorted descending
+                var largestChip = largestGroup.First();
+                
+                Logger.Info($"Multiple candidates with different sizes, using largest: {largestChip.Name} ({largestChip.SizeKB}KB)");
+                Logger.Debug($"Available sizes: {string.Join(", ", sizeGroups.Select(g => $"{g.Key / 1024}KB"))}");
+                
+                return largestChip;
+            }
+        }
+
+        /// <summary>
+        /// Creates a folded name from multiple chips with same size.
+        /// Example: ["MX25Q128FV", "MX25Q128JV", "MX25Q128RV"] -> "MX25Q128FV(JV/RV)"
+        /// </summary>
+        private string CreateFoldedName(List<ChipInfo> chips)
+        {
+            if (chips.Count == 1)
+                return chips[0].Name;
+
+            // Sort by name for consistent output
+            var sortedNames = chips.Select(c => c.Name).OrderBy(n => n).ToList();
+            
+            // Find common prefix
+            string baseName = sortedNames[0];
+            string commonPrefix = baseName;
+            
+            foreach (var name in sortedNames.Skip(1))
+            {
+                int i = 0;
+                while (i < commonPrefix.Length && i < name.Length && commonPrefix[i] == name[i])
+                    i++;
+                commonPrefix = commonPrefix.Substring(0, i);
+            }
+
+            // Extract suffixes (the unique parts)
+            var suffixes = new List<string>();
+            foreach (var name in sortedNames)
+            {
+                if (name.Length > commonPrefix.Length)
+                {
+                    suffixes.Add(name.Substring(commonPrefix.Length));
+                }
+            }
+
+            if (suffixes.Count == 0)
+            {
+                // All names identical? Just return first
+                return baseName;
+            }
+
+            // Build folded name: "MX25Q128FV(JV/RV)"
+            string firstSuffix = suffixes[0];
+            string otherSuffixes = string.Join("/", suffixes.Skip(1));
+            
+            return $"{commonPrefix}{firstSuffix}({otherSuffixes})";
         }
 
         #endregion
 
-        #region Chip Database (Hardcoded for minimal version)
+        #region Chip Database
 
-        private ChipInfo FindChipByMemoryId(MemoryId memoryId)
+        /// <summary>
+        /// Finds all chip candidates matching the given memory ID.
+        /// Returns list of possible matches (may be multiple chips with same ID).
+        /// </summary>
+        private List<ChipInfo> FindChipCandidatesByMemoryId(MemoryId memoryId)
         {
-            if (memoryId == null)
-                return null;
+            var candidates = new List<ChipInfo>();
 
-            // Get hardcoded chip list
-            var chips = GetHardcodedChipDatabase();
+            if (memoryId == null)
+                return candidates;
+
+            // Ensure database is loaded
+            EnsureDatabaseLoaded();
 
             // Primary match: Use JEDEC ID (bytes 1 and 2) if available
             if (memoryId.JedecId != null && memoryId.JedecId.Length >= 3)
@@ -254,29 +431,50 @@ namespace AuroraFlasher.Services
                 byte jedecManufacturer = memoryId.JedecId[0];
                 ushort jedecDeviceId = (ushort)((memoryId.JedecId[1] << 8) | memoryId.JedecId[2]);
 
-                foreach (var chip in chips)
+                foreach (var chip in _chipDatabase)
                 {
                     if (chip.ManufacturerId == jedecManufacturer &&
                         chip.DeviceId == jedecDeviceId)
                     {
                         Logger.Debug($"Chip matched by JEDEC ID: {jedecManufacturer:X2}-{memoryId.JedecId[1]:X2}-{memoryId.JedecId[2]:X2} -> {chip.Name}");
-                        return chip;
+                        candidates.Add(chip);
                     }
                 }
             }
 
             // Fallback match: Try Manufacturer ID and Device ID from 0x90 command
-            foreach (var chip in chips)
+            if (candidates.Count == 0)
             {
-                if (chip.ManufacturerId == memoryId.ManufacturerId &&
-                    chip.DeviceId == memoryId.DeviceId)
+                foreach (var chip in _chipDatabase)
                 {
-                    Logger.Debug($"Chip matched by MFR/Device ID: {memoryId.ManufacturerId:X2}-{memoryId.DeviceId:X4} -> {chip.Name}");
-                    return chip;
+                    if (chip.ManufacturerId == memoryId.ManufacturerId &&
+                        chip.DeviceId == memoryId.DeviceId)
+                    {
+                        Logger.Debug($"Chip matched by MFR/Device ID: {memoryId.ManufacturerId:X2}-{memoryId.DeviceId:X4} -> {chip.Name}");
+                        candidates.Add(chip);
+                    }
                 }
             }
 
-            return null;
+            if (candidates.Count > 0)
+            {
+                Logger.Info($"Found {candidates.Count} chip candidate(s) for ID {memoryId.ManufacturerId:X2}-{memoryId.DeviceId:X4}");
+                foreach (var candidate in candidates)
+                {
+                    Logger.Debug($"  - {candidate.Name} ({candidate.Manufacturer}, {candidate.SizeKB}KB)");
+                }
+            }
+
+            return candidates;
+        }
+
+        /// <summary>
+        /// Legacy method for backward compatibility. Returns first candidate or null.
+        /// </summary>
+        private ChipInfo FindChipByMemoryId(MemoryId memoryId)
+        {
+            var candidates = FindChipCandidatesByMemoryId(memoryId);
+            return candidates.Count > 0 ? candidates[0] : null;
         }
 
         private List<ChipInfo> GetHardcodedChipDatabase()

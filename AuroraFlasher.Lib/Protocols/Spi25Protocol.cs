@@ -190,7 +190,7 @@ namespace AuroraFlasher.Protocols
                 var stopwatch = Stopwatch.StartNew();
                 var data = new byte[length];
                 int bytesRead = 0;
-                const int chunkSize = 4096; // Read in 4KB chunks
+                const int chunkSize = 2048; // Read in 2KB chunks (CH341 hardware limit)
 
                 while (bytesRead < length)
                 {
@@ -244,7 +244,7 @@ namespace AuroraFlasher.Protocols
                 var stopwatch = Stopwatch.StartNew();
                 var data = new byte[length];
                 int bytesRead = 0;
-                const int chunkSize = 4096;
+                const int chunkSize = 2048; // 2KB chunks for CH341 hardware limit
 
                 while (bytesRead < length)
                 {

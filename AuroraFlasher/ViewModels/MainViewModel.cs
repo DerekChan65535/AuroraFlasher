@@ -352,10 +352,9 @@ namespace AuroraFlasher.ViewModels
 
                     ChipInfo = chipInfoBuilder.ToString();
                     
-                    // Keep reasonable default read length (64KB max for UI display)
-                    // User can read full chip in chunks if needed
-                    ReadLength = "65536";
-                    AppendLog($"Default read size set to 64KB (adjust as needed, chip is {chip.SizeKB}KB total)");
+                    // Set read length to detected chip size
+                    ReadLength = chip.Size.ToString();
+                    AppendLog($"Default read size set to full chip ({chip.SizeKB}KB)");
                 }
                 else
                 {

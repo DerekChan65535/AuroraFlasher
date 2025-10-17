@@ -200,12 +200,19 @@ namespace AuroraFlasher.Protocols
                     int toRead = Math.Min(remaining, chunkSize);
                     uint currentAddress = address + (uint)bytesRead;
 
+                    Logger.Debug($"Reading chunk: address=0x{currentAddress:X6}, size={toRead}, progress={bytesRead}/{length}");
+
                     // Build command with address
                     byte[] cmd = _is4ByteMode
                         ? new byte[] { CMD_READ_DATA, (byte)(currentAddress >> 24), (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress }
                         : new byte[] { CMD_READ_DATA, (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress };
 
+                    var chunkStartTime = DateTime.Now;
                     var result = await _hardware.SpiTransferAsync(cmd, toRead, cancellationToken);
+                    var chunkElapsed = DateTime.Now - chunkStartTime;
+                    
+                    Logger.Debug($"Chunk read completed in {chunkElapsed.TotalMilliseconds:F1}ms");
+                    
                     if (!result.Success)
                         return OperationResult<byte[]>.FailureResult($"Read failed at address 0x{currentAddress:X6}: {result.Message}");
 

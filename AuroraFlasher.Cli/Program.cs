@@ -13,14 +13,21 @@ namespace AuroraFlasher.Cli
     {
         static async Task<int> Main(string[] args)
         {
+            // Check for --clear flag
+            bool clearMode = args.Length > 0 && args[0] == "--clear";
+            
             Console.WriteLine("========================================");
             Console.WriteLine("  AuroraFlasher Console Test");
             Console.WriteLine("  CH341A + SPI Flash Test");
+            if (clearMode)
+            {
+                Console.WriteLine("  Mode: Clear Flash");
+            }
             Console.WriteLine("========================================");
             Console.WriteLine();
 
             Logger.Info("==========================================================");
-            Logger.Info("AuroraFlasher Console Test Started");
+            Logger.Info($"AuroraFlasher Console Test Started - Mode: {(clearMode ? "Clear Flash" : "Test")}");
             Logger.Info("==========================================================");
 
             try
@@ -100,7 +107,31 @@ namespace AuroraFlasher.Cli
                 Console.WriteLine($"   Device ID: 0x{chip.DeviceId:X4}");
                 Console.WriteLine();
 
-                // Step 5: Read first 256 bytes
+                if (clearMode)
+                {
+                    // Step 5: Clear Flash (using whole ROM verification)
+                    Console.WriteLine("[5] Clearing flash (with whole ROM verification)...");
+                    var progress = new Progress<ProgressInfo>(info => {
+                        Console.WriteLine($"   Progress: {info.Percentage:F1}% - {info.Status}");
+                    });
+                    
+                    var clearResult = await service.ClearFlashWholeRomAsync(progress);
+                    
+                    if (clearResult.Success)
+                    {
+                        Console.WriteLine($"   {clearResult.Message}");
+                        Console.WriteLine("[6] Clear flash completed successfully!");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   ERROR: {clearResult.Message}");
+                        await service.DisconnectAsync();
+                        return 1;
+                    }
+                }
+                else
+                {
+                    // Step 5: Read first 256 bytes
                 Console.WriteLine("[5] Reading first 256 bytes...");
                 var readResult = await service.ReadMemoryAsync(0x000000, 256);
                 if (!readResult.Success)
@@ -136,20 +167,21 @@ namespace AuroraFlasher.Cli
                     Console.WriteLine(ToHexDump(readResult2.Data));
                 }
                 Console.WriteLine();
+                }
 
-                // Step 8: Disconnect
-                Console.WriteLine("[8] Disconnecting...");
+                // Step 7: Disconnect (for clear mode) or Step 8 (for test mode)
+                Console.WriteLine($"[{(clearMode ? "7" : "8")}] Disconnecting...");
                 var disconnectResult = await service.DisconnectAsync();
                 Console.WriteLine($"   {disconnectResult.Message}");
                 Console.WriteLine();
 
                 Console.WriteLine("========================================");
-                Console.WriteLine("  Test completed successfully!");
+                Console.WriteLine($"  {(clearMode ? "Clear flash" : "Test")} completed successfully!");
                 Console.WriteLine("========================================");
                 Console.WriteLine();
                 
                 Logger.Info("==========================================================");
-                Logger.Info("AuroraFlasher Console Test Completed Successfully");
+                Logger.Info($"AuroraFlasher Console Test Completed Successfully - Mode: {(clearMode ? "Clear Flash" : "Test")}");
                 Logger.Info("==========================================================");
                 
                 Console.WriteLine("Press any key to exit...");

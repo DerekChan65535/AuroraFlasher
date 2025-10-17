@@ -62,6 +62,15 @@
                             Width="120" Height="30"
                             Background="#2196F3" Foreground="White"
                             FontWeight="Bold"/>
+                    
+                    <Button Content="Clear Flash" 
+                            Command="{Binding ClearFlashCommand}" 
+                            Width="120" Height="30"
+                            Background="#F44336" 
+                            Foreground="White"
+                            FontWeight="Bold"
+                            Margin="15,0,0,0"
+                            ToolTip="Erase entire chip and verify"/>
                 </StackPanel>
             </Grid>
         </Border>

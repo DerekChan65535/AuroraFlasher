@@ -137,6 +137,7 @@ namespace AuroraFlasher.ViewModels
         #region Can Execute Properties
 
         public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
+        public bool CanClearFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
 
         #endregion
 
@@ -144,6 +145,7 @@ namespace AuroraFlasher.ViewModels
 
         public ICommand ReadMemoryCommand { get; }
         public ICommand ClearLogCommand { get; }
+        public ICommand ClearFlashCommand { get; }
 
         #endregion
 
@@ -164,6 +166,7 @@ namespace AuroraFlasher.ViewModels
             // Initialize commands
             ReadMemoryCommand = new RelayCommand(async () => await ReadMemoryAsync(), () => CanRead);
             ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty);
+            ClearFlashCommand = new RelayCommand(async () => await ClearFlashAsync(), () => CanClearFlash);
 
             // Auto-enumerate on startup (will auto-connect and auto-detect if device present)
             Task.Run(async () => await EnumerateDevicesAsync());
@@ -536,6 +539,89 @@ namespace AuroraFlasher.ViewModels
             {
                 LogOutput += $"[{DateTime.Now:HH:mm:ss}] {message}\n";
             });
+        }
+
+        private async Task ClearFlashAsync()
+        {
+            // Show confirmation dialog with warning
+            var result = MessageBox.Show(
+                "This will erase all data on the chip. Continue?",
+                "Clear Flash Confirmation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            IsBusy = true;
+            IsOperationInProgress = true;
+            ProgressPercentage = 0;
+            ProgressText = "Starting...";
+            StatusMessage = "Clearing flash...";
+
+            try
+            {
+                _cancellationTokenSource = new CancellationTokenSource();
+                AppendLog("Starting clear flash operation...");
+
+                // Create progress reporter
+                var progress = new Progress<ProgressInfo>(progressInfo =>
+                {
+                    ProgressPercentage = progressInfo.Percentage;
+                    ProgressText = $"{progressInfo.Percentage:F1}% - {progressInfo.Status}";
+                    StatusMessage = $"Clearing... {progressInfo.Percentage:F0}%";
+                });
+
+                var clearResult = await _service.ClearFlashAsync(progress, _cancellationTokenSource.Token);
+
+                if (clearResult.Success)
+                {
+                    StatusMessage = "Clear flash completed successfully";
+                    ProgressText = "Complete";
+                    AppendLog($"Clear flash completed: {clearResult.Message}");
+                    
+                    // Show completion message
+                    MessageBox.Show(
+                        clearResult.Message,
+                        "Clear Flash Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    StatusMessage = $"Clear flash failed: {clearResult.Message}";
+                    ProgressText = "Failed";
+                    AppendLog($"Clear flash failed: {clearResult.Message}");
+                    
+                    // Show error message
+                    MessageBox.Show(
+                        $"Clear flash failed: {clearResult.Message}",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error: {ex.Message}";
+                ProgressText = "Error";
+                AppendLog($"Error during clear flash: {ex.Message}");
+                Logger.Error(ex, "Clear flash error in UI");
+                
+                MessageBox.Show(
+                    $"Clear flash error: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+                // Keep progress bar visible for 2 seconds so user can see final status
+                await Task.Delay(2000);
+                IsOperationInProgress = false;
+                ProgressPercentage = 0;
+            }
         }
 
         #endregion

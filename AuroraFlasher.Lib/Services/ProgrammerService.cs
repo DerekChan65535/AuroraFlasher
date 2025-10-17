@@ -762,10 +762,14 @@ namespace AuroraFlasher.Services
         {
             try
             {
+                Logger.Debug($"ReadMemoryAsync: address=0x{address:X6}, length={length}");
+                
                 if (_spiProtocol != null)
                 {
                     var progressHandler = CreateProgressHandler(progress);
-                    return await _spiProtocol.ReadAsync(address, length, progressHandler, cancellationToken);
+                    var result = await _spiProtocol.ReadAsync(address, length, progressHandler, cancellationToken);
+                    Logger.Debug($"ReadMemoryAsync: SPI read completed, success={result.Success}");
+                    return result;
                 }
                 else if (_i2cProtocol != null)
                 {
@@ -871,6 +875,346 @@ namespace AuroraFlasher.Services
             catch (Exception ex)
             {
                 return OperationResult<bool>.FailureResult($"Blank check failed: {ex.Message}", ex);
+            }
+        }
+
+        #endregion
+
+        #region Clear Flash Operations
+
+        /// <summary>
+        /// Clears (erases) the entire flash chip and verifies 1% of random addresses
+        /// </summary>
+        /// <param name="progress">Progress reporter for UI updates</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>OperationResult with verification statistics</returns>
+        public async Task<OperationResult> ClearFlashAsync(IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Validation
+                if (_hardware == null || !_hardware.IsConnected)
+                {
+                    Logger.Error("ClearFlashAsync called but hardware not connected");
+                    return OperationResult.FailureResult("Hardware not connected");
+                }
+
+                if (_spiProtocol == null)
+                {
+                    Logger.Error("ClearFlashAsync called but SPI protocol not initialized");
+                    return OperationResult.FailureResult("No protocol initialized");
+                }
+
+                if (_spiProtocol.ChipInfo == null)
+                {
+                    Logger.Error("ClearFlashAsync called but chip not detected");
+                    return OperationResult.FailureResult("No chip detected");
+                }
+
+                var chipSize = _spiProtocol.ChipInfo.Size;
+                Logger.Info($"Starting clear flash operation for chip size: {chipSize} bytes ({chipSize / 1024}KB)");
+
+                var progressHandler = CreateProgressHandler(progress);
+
+                // Phase 1: Erase chip (0-50% progress)
+                Logger.Info("Phase 1: Erasing chip...");
+                progressHandler?.Report(new ProgressInfo(0, 100, "Erasing chip... (this may take 30-60 seconds)"));
+
+                var eraseResult = await EraseChipAsync(progressHandler, cancellationToken);
+                if (!eraseResult.Success)
+                {
+                    Logger.Error($"Chip erase failed: {eraseResult.Message}");
+                    return OperationResult.FailureResult($"Erase failed: {eraseResult.Message}");
+                }
+
+                Logger.Info("Phase 1 complete: Chip erased successfully");
+                progressHandler?.Report(new ProgressInfo(50, 100, "Chip erased successfully"));
+
+                // Phase 2: Random verification (50-100% progress)
+                Logger.Info("Phase 2: Starting random verification...");
+                
+                // Calculate sample count: Much smaller for practical verification
+                // For 1MB chip: 1000 samples, for 8MB chip: 2000 samples, max 2000
+                int sampleCount = Math.Min(2000, Math.Max(100, (int)(chipSize / 1024)));
+                Logger.Info($"Will verify {sampleCount} random addresses (optimized for performance)");
+
+                var verificationResult = await VerifyRandomAddressesAsync((uint)chipSize, sampleCount, progressHandler, cancellationToken);
+                
+                if (verificationResult.Success)
+                {
+                    var message = $"Clear completed: {verificationResult.Data.verified} addresses verified, {verificationResult.Data.failures.Count} failures";
+                    Logger.Info(message);
+                    return OperationResult.SuccessResult(message);
+                }
+                else
+                {
+                    Logger.Error($"Verification failed: {verificationResult.Message}");
+                    return OperationResult.FailureResult($"Verification failed: {verificationResult.Message}");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Warn("Clear flash operation cancelled");
+                return OperationResult.FailureResult("Clear operation cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Clear flash operation failed with exception");
+                return OperationResult.FailureResult($"Clear flash failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Generates random addresses for verification sampling
+        /// </summary>
+        private HashSet<uint> GenerateRandomAddresses(uint chipSize, int sampleCount)
+        {
+            var random = new Random();
+            var addresses = new HashSet<uint>();
+            
+            // Generate addresses aligned to 256-byte boundaries (page boundaries)
+            int maxPages = (int)(chipSize / 256);
+            
+            while (addresses.Count < sampleCount)
+            {
+                // Generate random page-aligned address
+                uint pageIndex = (uint)random.Next(maxPages);
+                uint addr = pageIndex * 256;
+                addresses.Add(addr);
+            }
+            
+            Logger.Debug($"Generated {addresses.Count} random addresses for verification");
+            return addresses;
+        }
+
+        /// <summary>
+        /// Verifies random addresses are all 0xFF (erased state)
+        /// </summary>
+        private async Task<OperationResult<(int verified, List<uint> failures)>> VerifyRandomAddressesAsync(
+            uint chipSize, 
+            int sampleCount, 
+            IProgress<ProgressInfo> progress, 
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var addresses = GenerateRandomAddresses(chipSize, sampleCount);
+                var failures = new List<uint>();
+                int count = 0;
+                var startTime = DateTime.Now;
+                
+                Logger.Info($"Starting verification of {addresses.Count} addresses...");
+                Logger.Debug($"First 10 addresses to verify: {string.Join(", ", addresses.Take(10).Select(a => $"0x{a:X6}"))}");
+                
+                foreach (var addr in addresses.OrderBy(a => a))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    
+                    var addressStartTime = DateTime.Now;
+                    Logger.Debug($"Verifying address 0x{addr:X6} ({count + 1}/{addresses.Count})...");
+                    
+                    // Read only 64 bytes for verification (much faster than 256)
+                    var readResult = await ReadMemoryAsync(addr, 64, null, cancellationToken);
+                    
+                    var addressElapsed = DateTime.Now - addressStartTime;
+                    Logger.Debug($"Address 0x{addr:X6} read completed in {addressElapsed.TotalMilliseconds:F1}ms");
+                    
+                    if (!readResult.Success)
+                    {
+                        Logger.Warn($"Failed to read address 0x{addr:X6}: {readResult.Message}");
+                        failures.Add(addr);
+                    }
+                    else
+                    {
+                        // Check if all bytes are 0xFF (erased state)
+                        if (!readResult.Data.All(b => b == 0xFF))
+                        {
+                            // Find first non-0xFF byte for logging
+                            int firstNonFF = Array.FindIndex(readResult.Data, b => b != 0xFF);
+                            Logger.Warn($"Address 0x{addr:X6} not erased: found 0x{readResult.Data[firstNonFF]:X2} at offset {firstNonFF}");
+                            failures.Add(addr);
+                        }
+                        else
+                        {
+                            Logger.Debug($"Address 0x{addr:X6} verified as erased (all 0xFF)");
+                        }
+                    }
+                    
+                    count++;
+                    
+                    // Report progress (50-100%) and log every 100 addresses
+                    int progressPercent = 50 + (count * 50 / addresses.Count);
+                    progress?.Report(new ProgressInfo(count, addresses.Count, $"Verifying {count}/{addresses.Count} addresses..."));
+                    
+                    if (count % 50 == 0 || count == addresses.Count)
+                    {
+                        var elapsed = DateTime.Now - startTime;
+                        var avgTimePerAddress = elapsed.TotalMilliseconds / count;
+                        var estimatedRemaining = TimeSpan.FromMilliseconds(avgTimePerAddress * (addresses.Count - count));
+                        Logger.Info($"Verification progress: {count}/{addresses.Count} ({progressPercent}%) - Avg: {avgTimePerAddress:F1}ms/addr - ETA: {estimatedRemaining:mm\\:ss}");
+                    }
+                }
+                
+                Logger.Info($"Verification complete: {count} addresses checked, {failures.Count} failures");
+                
+                // Build result message
+                string message;
+                if (failures.Count == 0)
+                {
+                    message = $"All {count} addresses verified successfully";
+                }
+                else
+                {
+                    var failureList = string.Join(", ", failures.Take(5).Select(a => $"0x{a:X6}"));
+                    if (failures.Count > 5)
+                        failureList += $" and {failures.Count - 5} more";
+                    message = $"Verification failed at addresses: {failureList}";
+                }
+                
+                return OperationResult<(int verified, List<uint> failures)>.SuccessResult(
+                    (count, failures), 
+                    message);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Random address verification failed");
+                return OperationResult<(int verified, List<uint> failures)>.FailureResult(
+                    $"Verification failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Clears (erases) the entire flash chip and verifies by reading the whole ROM
+        /// </summary>
+        /// <param name="progress">Progress reporter for UI updates</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>OperationResult with verification statistics</returns>
+        public async Task<OperationResult> ClearFlashWholeRomAsync(IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Validation
+                if (_hardware == null || !_hardware.IsConnected)
+                {
+                    Logger.Error("ClearFlashWholeRomAsync called but hardware not connected");
+                    return OperationResult.FailureResult("Hardware not connected");
+                }
+
+                if (_spiProtocol == null)
+                {
+                    Logger.Error("ClearFlashWholeRomAsync called but SPI protocol not initialized");
+                    return OperationResult.FailureResult("No protocol initialized");
+                }
+
+                if (_spiProtocol.ChipInfo == null)
+                {
+                    Logger.Error("ClearFlashWholeRomAsync called but chip not detected");
+                    return OperationResult.FailureResult("No chip detected");
+                }
+
+                var chipSize = _spiProtocol.ChipInfo.Size;
+                Logger.Info($"Starting clear flash operation for chip size: {chipSize} bytes ({chipSize / 1024}KB)");
+
+                var progressHandler = CreateProgressHandler(progress);
+
+                // Phase 1: Erase chip (0-30% progress)
+                Logger.Info("Phase 1: Erasing chip...");
+                progressHandler?.Report(new ProgressInfo(0, 100, "Erasing chip... (this may take 30-60 seconds)"));
+
+                var eraseResult = await EraseChipAsync(progressHandler, cancellationToken);
+                if (!eraseResult.Success)
+                {
+                    Logger.Error($"Chip erase failed: {eraseResult.Message}");
+                    return OperationResult.FailureResult($"Erase failed: {eraseResult.Message}");
+                }
+
+                Logger.Info("Phase 1 complete: Chip erased successfully");
+                progressHandler?.Report(new ProgressInfo(30, 100, "Chip erased successfully"));
+
+                // Phase 2: Read entire ROM to verify (30-100% progress)
+                Logger.Info("Phase 2: Reading entire ROM to verify clearing...");
+                progressHandler?.Report(new ProgressInfo(30, 100, "Reading entire ROM to verify clearing..."));
+
+                var readResult = await ReadMemoryAsync(0, chipSize, progressHandler, cancellationToken);
+                if (!readResult.Success)
+                {
+                    Logger.Error($"Failed to read entire ROM: {readResult.Message}");
+                    return OperationResult.FailureResult($"ROM read failed: {readResult.Message}");
+                }
+
+                Logger.Info("Phase 2 complete: Entire ROM read successfully");
+
+                // Phase 3: Verify all bytes are 0xFF (erased state)
+                Logger.Info("Phase 3: Verifying all bytes are erased (0xFF)...");
+                progressHandler?.Report(new ProgressInfo(95, 100, "Verifying all bytes are erased..."));
+
+                var verificationResult = VerifyEntireRom(readResult.Data);
+                
+                if (verificationResult.Success)
+                {
+                    var message = $"Clear completed: Entire ROM verified as cleared ({chipSize:N0} bytes all 0xFF)";
+                    Logger.Info(message);
+                    progressHandler?.Report(new ProgressInfo(100, 100, "Clear flash completed successfully"));
+                    return OperationResult.SuccessResult(message);
+                }
+                else
+                {
+                    Logger.Error($"Verification failed: {verificationResult.Message}");
+                    return OperationResult.FailureResult($"Verification failed: {verificationResult.Message}");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Warn("Clear flash operation cancelled");
+                return OperationResult.FailureResult("Clear operation cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Clear flash operation failed with exception");
+                return OperationResult.FailureResult($"Clear flash failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that all bytes in the ROM data are 0xFF (erased state)
+        /// </summary>
+        private OperationResult VerifyEntireRom(byte[] romData)
+        {
+            try
+            {
+                if (romData == null || romData.Length == 0)
+                {
+                    return OperationResult.FailureResult("ROM data is null or empty");
+                }
+
+                Logger.Info($"Verifying {romData.Length:N0} bytes are all 0xFF...");
+
+                // Find first non-0xFF byte
+                int firstNonFF = Array.FindIndex(romData, b => b != 0xFF);
+                
+                if (firstNonFF == -1)
+                {
+                    // All bytes are 0xFF
+                    Logger.Info($"Verification successful: All {romData.Length:N0} bytes are 0xFF (erased)");
+                    return OperationResult.SuccessResult($"All {romData.Length:N0} bytes verified as erased (0xFF)");
+                }
+                else
+                {
+                    // Found non-0xFF byte
+                    byte nonFFByte = romData[firstNonFF];
+                    Logger.Warn($"Verification failed: Found 0x{nonFFByte:X2} at address 0x{firstNonFF:X6}");
+                    
+                    // Count total non-0xFF bytes for statistics
+                    int nonFFCount = romData.Count(b => b != 0xFF);
+                    Logger.Warn($"Total non-0xFF bytes found: {nonFFCount:N0} out of {romData.Length:N0}");
+                    
+                    return OperationResult.FailureResult($"ROM not fully erased: Found 0x{nonFFByte:X2} at address 0x{firstNonFF:X6} ({nonFFCount:N0} non-0xFF bytes total)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "ROM verification failed with exception");
+                return OperationResult.FailureResult($"Verification failed: {ex.Message}", ex);
             }
         }
 

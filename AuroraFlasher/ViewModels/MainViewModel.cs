@@ -225,8 +225,24 @@ namespace AuroraFlasher.ViewModels
                 // Wait a moment to let the UI initialize
                 await Task.Delay(500);
 
-                AppendLog("CH341 device detected at startup, attempting auto-connect...");
-                await AutoConnectAsync();
+                // First check if there are actually any physical CH341 devices available
+                try
+                {
+                    var devices = await SelectedDevice.EnumerateDevicesAsync();
+                    if (devices != null && devices.Length > 0)
+                    {
+                        AppendLog("CH341 device detected at startup, attempting auto-connect...");
+                        await AutoConnectAsync();
+                    }
+                    else
+                    {
+                        AppendLog("No CH341 devices found");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"Error checking for CH341 devices: {ex.Message}");
+                }
             }
         }
 

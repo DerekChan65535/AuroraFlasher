@@ -13,8 +13,11 @@ namespace AuroraFlasher.Cli
     {
         static async Task<int> Main(string[] args)
         {
-            // Check for --clear flag
+            // Parse command line arguments
             bool clearMode = args.Length > 0 && args[0] == "--clear";
+            bool flashMode = args.Length >= 2 && args[0] == "--flash";
+            bool flashVerifyMode = args.Length >= 2 && args[0] == "--flash-verify";
+            string filePath = flashMode || flashVerifyMode ? args[1] : null;
             
             Console.WriteLine("========================================");
             Console.WriteLine("  AuroraFlasher Console Test");
@@ -23,11 +26,19 @@ namespace AuroraFlasher.Cli
             {
                 Console.WriteLine("  Mode: Clear Flash");
             }
+            else if (flashMode)
+            {
+                Console.WriteLine($"  Mode: Flash ROM from {filePath}");
+            }
+            else if (flashVerifyMode)
+            {
+                Console.WriteLine($"  Mode: Flash ROM with Verify from {filePath}");
+            }
             Console.WriteLine("========================================");
             Console.WriteLine();
 
             Logger.Info("==========================================================");
-            Logger.Info($"AuroraFlasher Console Test Started - Mode: {(clearMode ? "Clear Flash" : "Test")}");
+            Logger.Info($"AuroraFlasher Console Test Started - Mode: {(clearMode ? "Clear Flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with Verify" : "Test")}");
             Logger.Info("==========================================================");
 
             try
@@ -129,6 +140,50 @@ namespace AuroraFlasher.Cli
                         return 1;
                     }
                 }
+                else if (flashMode)
+                {
+                    // Step 5: Flash ROM
+                    Console.WriteLine($"[5] Flashing ROM from: {filePath}");
+                    var progress = new Progress<ProgressInfo>(info => {
+                        Console.WriteLine($"   Progress: {info.Percentage:F1}% - {info.Status}");
+                    });
+                    
+                    var flashResult = await service.FlashAsync(filePath, progress);
+                    
+                    if (flashResult.Success)
+                    {
+                        Console.WriteLine($"   {flashResult.Message}");
+                        Console.WriteLine("[6] Flash ROM completed successfully!");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   ERROR: {flashResult.Message}");
+                        await service.DisconnectAsync();
+                        return 1;
+                    }
+                }
+                else if (flashVerifyMode)
+                {
+                    // Step 5: Flash ROM with Verify
+                    Console.WriteLine($"[5] Flashing ROM with verify from: {filePath}");
+                    var progress = new Progress<ProgressInfo>(info => {
+                        Console.WriteLine($"   Progress: {info.Percentage:F1}% - {info.Status}");
+                    });
+                    
+                    var flashResult = await service.FlashWithVerifyAsync(filePath, progress);
+                    
+                    if (flashResult.Success)
+                    {
+                        Console.WriteLine($"   {flashResult.Message}");
+                        Console.WriteLine("[6] Flash ROM with verify completed successfully!");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   ERROR: {flashResult.Message}");
+                        await service.DisconnectAsync();
+                        return 1;
+                    }
+                }
                 else
                 {
                     // Step 5: Read first 256 bytes
@@ -169,19 +224,20 @@ namespace AuroraFlasher.Cli
                 Console.WriteLine();
                 }
 
-                // Step 7: Disconnect (for clear mode) or Step 8 (for test mode)
-                Console.WriteLine($"[{(clearMode ? "7" : "8")}] Disconnecting...");
+                // Step 7: Disconnect
+                Console.WriteLine($"[{(clearMode || flashMode || flashVerifyMode ? "7" : "8")}] Disconnecting...");
                 var disconnectResult = await service.DisconnectAsync();
                 Console.WriteLine($"   {disconnectResult.Message}");
                 Console.WriteLine();
 
                 Console.WriteLine("========================================");
-                Console.WriteLine($"  {(clearMode ? "Clear flash" : "Test")} completed successfully!");
+                string operationName = clearMode ? "Clear flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with verify" : "Test";
+                Console.WriteLine($"  {operationName} completed successfully!");
                 Console.WriteLine("========================================");
                 Console.WriteLine();
                 
                 Logger.Info("==========================================================");
-                Logger.Info($"AuroraFlasher Console Test Completed Successfully - Mode: {(clearMode ? "Clear Flash" : "Test")}");
+                Logger.Info($"AuroraFlasher Console Test Completed Successfully - Mode: {operationName}");
                 Logger.Info("==========================================================");
                 
                 Console.WriteLine("Press any key to exit...");

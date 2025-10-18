@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1117,9 +1118,9 @@ namespace AuroraFlasher.Services
 
                 var progressHandler = CreateProgressHandler(progress);
 
-                // Phase 1: Erase chip (0-30% progress)
+                // Phase 1: Erase chip (0-100% progress)
                 Logger.Info("Phase 1: Erasing chip...");
-                progressHandler?.Report(new ProgressInfo(0, 100, "Erasing chip... (this may take 30-60 seconds)"));
+                progressHandler?.Report(new ProgressInfo(0, 100, "Phase 1: Erasing chip... (this may take 30-60 seconds)"));
 
                 var eraseResult = await EraseChipAsync(progressHandler, cancellationToken);
                 if (!eraseResult.Success)
@@ -1129,11 +1130,11 @@ namespace AuroraFlasher.Services
                 }
 
                 Logger.Info("Phase 1 complete: Chip erased successfully");
-                progressHandler?.Report(new ProgressInfo(30, 100, "Chip erased successfully"));
+                progressHandler?.Report(new ProgressInfo(100, 100, "Phase 1 Complete: Chip erased successfully"));
 
-                // Phase 2: Read entire ROM to verify (30-100% progress)
+                // Phase 2: Read entire ROM to verify (0-100% progress - reset)
                 Logger.Info("Phase 2: Reading entire ROM to verify clearing...");
-                progressHandler?.Report(new ProgressInfo(30, 100, "Reading entire ROM to verify clearing..."));
+                progressHandler?.Report(new ProgressInfo(0, 100, "Phase 2: Reading entire ROM to verify clearing..."));
 
                 var readResult = await ReadMemoryAsync(0, chipSize, progressHandler, cancellationToken);
                 if (!readResult.Success)
@@ -1143,10 +1144,11 @@ namespace AuroraFlasher.Services
                 }
 
                 Logger.Info("Phase 2 complete: Entire ROM read successfully");
+                progressHandler?.Report(new ProgressInfo(100, 100, "Phase 2 Complete: Entire ROM read successfully"));
 
-                // Phase 3: Verify all bytes are 0xFF (erased state)
+                // Phase 3: Verify all bytes are 0xFF (erased state) - quick verification
                 Logger.Info("Phase 3: Verifying all bytes are erased (0xFF)...");
-                progressHandler?.Report(new ProgressInfo(95, 100, "Verifying all bytes are erased..."));
+                progressHandler?.Report(new ProgressInfo(0, 100, "Phase 3: Verifying all bytes are erased..."));
 
                 var verificationResult = VerifyEntireRom(readResult.Data);
                 
@@ -1154,7 +1156,7 @@ namespace AuroraFlasher.Services
                 {
                     var message = $"Clear completed: Entire ROM verified as cleared ({chipSize:N0} bytes all 0xFF)";
                     Logger.Info(message);
-                    progressHandler?.Report(new ProgressInfo(100, 100, "Clear flash completed successfully"));
+                    progressHandler?.Report(new ProgressInfo(100, 100, "Phase 3 Complete: All bytes verified as erased"));
                     return OperationResult.SuccessResult(message);
                 }
                 else
@@ -1220,6 +1222,285 @@ namespace AuroraFlasher.Services
 
         #endregion
 
+        #region Flash Operations
+
+        /// <summary>
+        /// Flash binary file to chip starting at address 0x000000
+        /// Assumes chip is already erased
+        /// </summary>
+        public async Task<OperationResult> FlashAsync(
+            string filePath, 
+            IProgress<ProgressInfo> progress = null, 
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                Logger.Info($"Starting flash operation for file: {filePath}");
+
+                // 1. Validate inputs
+                var validationResult = await ValidateFlashInputsAsync(filePath, cancellationToken);
+                if (!validationResult.Success)
+                {
+                    return validationResult;
+                }
+
+                // 2. Load file
+                Logger.Info($"Loading binary file: {filePath}");
+                byte[] fileData;
+                try
+                {
+                    fileData = File.ReadAllBytes(filePath);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, $"Failed to read file: {filePath}");
+                    return OperationResult.FailureResult($"Failed to read file: {ex.Message}", ex);
+                }
+
+                Logger.Info($"File loaded: {fileData.Length:N0} bytes");
+                Logger.Info($"Chip size: {_spiProtocol.ChipInfo.Size:N0} bytes");
+                Logger.Info($"Page size: {_spiProtocol.ChipInfo.PageSize} bytes");
+
+                // 3. Write data using existing WriteMemoryAsync
+                var progressHandler = CreateProgressHandler(progress);
+                var writeResult = await WriteMemoryAsync(0, fileData, progressHandler, cancellationToken);
+
+                if (writeResult.Success)
+                {
+                    Logger.Info($"Flash operation completed successfully: {fileData.Length:N0} bytes written");
+                    return OperationResult.SuccessResult($"Flash completed: {fileData.Length:N0} bytes written to address 0x000000");
+                }
+                else
+                {
+                    Logger.Error($"Flash operation failed: {writeResult.Message}");
+                    return writeResult;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Warn("Flash operation cancelled");
+                return OperationResult.FailureResult("Flash operation cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Flash operation failed with exception");
+                return OperationResult.FailureResult($"Flash operation failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Flash binary file with immediate page-by-page verification
+        /// Assumes chip is already erased
+        /// </summary>
+        public async Task<OperationResult> FlashWithVerifyAsync(
+            string filePath,
+            IProgress<ProgressInfo> progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                Logger.Info($"Starting flash with verify operation for file: {filePath}");
+
+                // 1. Validate inputs
+                var validationResult = await ValidateFlashInputsAsync(filePath, cancellationToken);
+                if (!validationResult.Success)
+                {
+                    return validationResult;
+                }
+
+                // 2. Load file
+                Logger.Info($"Loading binary file: {filePath}");
+                byte[] fileData;
+                try
+                {
+                    fileData = File.ReadAllBytes(filePath);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, $"Failed to read file: {filePath}");
+                    return OperationResult.FailureResult($"Failed to read file: {ex.Message}", ex);
+                }
+
+                Logger.Info($"File loaded: {fileData.Length:N0} bytes");
+                Logger.Info($"Chip size: {_spiProtocol.ChipInfo.Size:N0} bytes");
+                Logger.Info($"Page size: {_spiProtocol.ChipInfo.PageSize} bytes");
+
+                // 3. Get page size from chip info
+                int pageSize = _spiProtocol.ChipInfo.PageSize;
+                Logger.Debug($"Using page size: {pageSize} bytes");
+
+                // 4. Write page-by-page with immediate verification
+                var stopwatch = Stopwatch.StartNew();
+                int bytesWritten = 0;
+                uint currentAddress = 0;
+
+                while (bytesWritten < fileData.Length)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // Calculate bytes to write in this page
+                    int remainingBytes = fileData.Length - bytesWritten;
+                    int bytesInPage = Math.Min(pageSize, remainingBytes);
+
+                    // Extract page data
+                    byte[] pageData = new byte[bytesInPage];
+                    Array.Copy(fileData, bytesWritten, pageData, 0, bytesInPage);
+
+                    Logger.Debug($"Writing page at address 0x{currentAddress:X6}, size: {bytesInPage} bytes");
+
+                    // Write page
+                    var writeResult = await _spiProtocol.WritePageAsync(currentAddress, pageData, cancellationToken);
+                    if (!writeResult.Success)
+                    {
+                        Logger.Error($"Page write failed at address 0x{currentAddress:X6}: {writeResult.Message}");
+                        return OperationResult.FailureResult($"Page write failed at address 0x{currentAddress:X6}: {writeResult.Message}");
+                    }
+
+                    Logger.Debug($"Page written successfully, now verifying...");
+
+                    // Read back page for verification
+                    var readResult = await _spiProtocol.ReadAsync(currentAddress, bytesInPage, null, cancellationToken);
+                    if (!readResult.Success)
+                    {
+                        Logger.Error($"Page read failed at address 0x{currentAddress:X6}: {readResult.Message}");
+                        return OperationResult.FailureResult($"Page read failed at address 0x{currentAddress:X6}: {readResult.Message}");
+                    }
+
+                    // Compare data byte-by-byte
+                    bool dataMatches = true;
+                    int firstMismatchIndex = -1;
+                    for (int i = 0; i < bytesInPage; i++)
+                    {
+                        if (readResult.Data[i] != pageData[i])
+                        {
+                            dataMatches = false;
+                            firstMismatchIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (!dataMatches)
+                    {
+                        uint errorAddress = currentAddress + (uint)firstMismatchIndex;
+                        byte expectedByte = pageData[firstMismatchIndex];
+                        byte actualByte = readResult.Data[firstMismatchIndex];
+                        
+                        Logger.Error($"Verify failed at address 0x{errorAddress:X6}: expected 0x{expectedByte:X2}, got 0x{actualByte:X2}");
+                        return OperationResult.FailureResult($"Verify failed at address 0x{errorAddress:X6}: expected 0x{expectedByte:X2}, got 0x{actualByte:X2}");
+                    }
+
+                    Logger.Debug($"Page verified successfully at address 0x{currentAddress:X6}");
+
+                    // Update counters
+                    bytesWritten += bytesInPage;
+                    currentAddress += (uint)bytesInPage;
+
+                    // Report progress
+                    if (progress != null)
+                    {
+                        var progressInfo = new ProgressInfo(bytesWritten, fileData.Length, $"Flashing with verify... {stopwatch.Elapsed.TotalSeconds:F1}s");
+                        progress.Report(progressInfo);
+                        OnProgressChanged(progressInfo);
+                    }
+                }
+
+                stopwatch.Stop();
+                Logger.Info($"Flash with verify completed successfully: {fileData.Length:N0} bytes written and verified in {stopwatch.Elapsed.TotalSeconds:F2}s ({fileData.Length / stopwatch.Elapsed.TotalSeconds / 1024:F1} KB/s)");
+                
+                return OperationResult.SuccessResult($"Flash with verify completed: {fileData.Length:N0} bytes written and verified to address 0x000000");
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Warn("Flash with verify operation cancelled");
+                return OperationResult.FailureResult("Flash with verify operation cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Flash with verify operation failed with exception");
+                return OperationResult.FailureResult($"Flash with verify operation failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Validates inputs for flash operations
+        /// </summary>
+        private async Task<OperationResult> ValidateFlashInputsAsync(string filePath, CancellationToken cancellationToken)
+        {
+            // Check hardware connected
+            if (_hardware == null || !_hardware.IsConnected)
+            {
+                Logger.Error("ValidateFlashInputsAsync called but hardware not connected");
+                return OperationResult.FailureResult("Hardware not connected");
+            }
+
+            // Check protocol initialized
+            if (_spiProtocol == null)
+            {
+                Logger.Error("ValidateFlashInputsAsync called but SPI protocol not initialized");
+                return OperationResult.FailureResult("No protocol initialized");
+            }
+
+            // Check chip detected
+            if (_spiProtocol.ChipInfo == null)
+            {
+                Logger.Error("ValidateFlashInputsAsync called but chip not detected");
+                return OperationResult.FailureResult("No chip detected");
+            }
+
+            // Check file path
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                Logger.Error("ValidateFlashInputsAsync called with null or empty file path");
+                return OperationResult.FailureResult("File path is required");
+            }
+
+            // Check file exists
+            if (!File.Exists(filePath))
+            {
+                Logger.Error($"File does not exist: {filePath}");
+                return OperationResult.FailureResult($"File does not exist: {filePath}");
+            }
+
+            // Check file extension
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            if (extension != ".bin")
+            {
+                Logger.Error($"Invalid file extension: {extension}. Only .bin files are supported");
+                return OperationResult.FailureResult($"Invalid file extension: {extension}. Only .bin files are supported");
+            }
+
+            // Check file size
+            try
+            {
+                var fileInfo = new FileInfo(filePath);
+                long fileSize = fileInfo.Length;
+                long chipSize = _spiProtocol.ChipInfo.Size;
+
+                Logger.Debug($"File size: {fileSize:N0} bytes, Chip size: {chipSize:N0} bytes");
+
+                if (fileSize > chipSize)
+                {
+                    Logger.Error($"File size ({fileSize:N0} bytes) exceeds chip size ({chipSize:N0} bytes)");
+                    return OperationResult.FailureResult($"File size ({fileSize:N0} bytes) exceeds chip size ({chipSize:N0} bytes)");
+                }
+
+                if (fileSize == 0)
+                {
+                    Logger.Error("File is empty");
+                    return OperationResult.FailureResult("File is empty");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, $"Failed to check file size: {filePath}");
+                return OperationResult.FailureResult($"Failed to check file size: {ex.Message}", ex);
+            }
+
+            return OperationResult.SuccessResult("Flash inputs validated successfully");
+        }
+
+        #endregion
+
         #region Helper Methods
 
         private IProgress<ProgressInfo> CreateProgressHandler(IProgress<ProgressInfo> progress)
@@ -1230,8 +1511,13 @@ namespace AuroraFlasher.Services
             return new Progress<ProgressInfo>(info =>
             {
                 progress.Report(info);
-                ProgressChanged?.Invoke(this, info);
+                OnProgressChanged(info);
             });
+        }
+
+        protected virtual void OnProgressChanged(ProgressInfo progressInfo)
+        {
+            ProgressChanged?.Invoke(this, progressInfo);
         }
 
         #endregion

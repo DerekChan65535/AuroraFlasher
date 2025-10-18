@@ -102,6 +102,13 @@ namespace AuroraFlasher.ViewModels
             set => SetProperty(ref _readLength, value);
         }
 
+        private string _flashFilePath;
+        public string FlashFilePath
+        {
+            get => _flashFilePath;
+            set => SetProperty(ref _flashFilePath, value);
+        }
+
         public ObservableCollection<IHardware> AvailableDevices { get; }
 
         private IHardware _selectedDevice;
@@ -138,6 +145,7 @@ namespace AuroraFlasher.ViewModels
 
         public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
         public bool CanClearFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
+        public bool CanFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !string.IsNullOrEmpty(FlashFilePath);
 
         #endregion
 
@@ -146,6 +154,9 @@ namespace AuroraFlasher.ViewModels
         public ICommand ReadMemoryCommand { get; }
         public ICommand ClearLogCommand { get; }
         public ICommand ClearFlashCommand { get; }
+        public ICommand BrowseFlashFileCommand { get; }
+        public ICommand FlashCommand { get; }
+        public ICommand FlashWithVerifyCommand { get; }
 
         #endregion
 
@@ -167,6 +178,9 @@ namespace AuroraFlasher.ViewModels
             ReadMemoryCommand = new RelayCommand(async () => await ReadMemoryAsync(), () => CanRead);
             ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty);
             ClearFlashCommand = new RelayCommand(async () => await ClearFlashAsync(), () => CanClearFlash);
+            BrowseFlashFileCommand = new RelayCommand(() => BrowseFlashFile());
+            FlashCommand = new RelayCommand(async () => await FlashAsync(), () => CanFlash);
+            FlashWithVerifyCommand = new RelayCommand(async () => await FlashWithVerifyAsync(), () => CanFlash);
 
             // Auto-enumerate on startup (will auto-connect and auto-detect if device present)
             Task.Run(async () => await EnumerateDevicesAsync());
@@ -572,7 +586,7 @@ namespace AuroraFlasher.ViewModels
                     StatusMessage = $"Clearing... {progressInfo.Percentage:F0}%";
                 });
 
-                var clearResult = await _service.ClearFlashAsync(progress, _cancellationTokenSource.Token);
+                var clearResult = await _service.ClearFlashWholeRomAsync(progress, _cancellationTokenSource.Token);
 
                 if (clearResult.Success)
                 {
@@ -621,6 +635,201 @@ namespace AuroraFlasher.ViewModels
                 await Task.Delay(2000);
                 IsOperationInProgress = false;
                 ProgressPercentage = 0;
+            }
+        }
+
+        private async Task FlashAsync()
+        {
+            // Show confirmation dialog
+            var result = MessageBox.Show(
+                $"This will write the binary file to the chip starting at address 0x000000.\n\nFile: {FlashFilePath}\n\nContinue?",
+                "Flash ROM Confirmation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            IsBusy = true;
+            IsOperationInProgress = true;
+            ProgressPercentage = 0;
+            ProgressText = "Starting...";
+            StatusMessage = "Flashing ROM...";
+
+            try
+            {
+                _cancellationTokenSource = new CancellationTokenSource();
+                AppendLog($"Starting flash operation for file: {FlashFilePath}");
+
+                // Create progress reporter
+                var progress = new Progress<ProgressInfo>(progressInfo =>
+                {
+                    ProgressPercentage = progressInfo.Percentage;
+                    ProgressText = $"{progressInfo.Percentage:F1}% - {progressInfo.Status}";
+                    StatusMessage = $"Flashing... {progressInfo.Percentage:F0}%";
+                });
+
+                var flashResult = await _service.FlashAsync(FlashFilePath, progress, _cancellationTokenSource.Token);
+
+                if (flashResult.Success)
+                {
+                    StatusMessage = "Flash ROM completed successfully";
+                    ProgressText = "Complete";
+                    AppendLog($"Flash ROM completed: {flashResult.Message}");
+                    
+                    // Show completion message
+                    MessageBox.Show(
+                        flashResult.Message,
+                        "Flash ROM Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    StatusMessage = $"Flash ROM failed: {flashResult.Message}";
+                    ProgressText = "Failed";
+                    AppendLog($"Flash ROM failed: {flashResult.Message}");
+                    
+                    // Show error message
+                    MessageBox.Show(
+                        $"Flash ROM failed: {flashResult.Message}",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error: {ex.Message}";
+                ProgressText = "Error";
+                AppendLog($"Error during flash ROM: {ex.Message}");
+                Logger.Error(ex, "Flash ROM error in UI");
+                
+                MessageBox.Show(
+                    $"Flash ROM error: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+                // Keep progress bar visible for 2 seconds so user can see final status
+                await Task.Delay(2000);
+                IsOperationInProgress = false;
+                ProgressPercentage = 0;
+            }
+        }
+
+        private async Task FlashWithVerifyAsync()
+        {
+            // Show confirmation dialog
+            var result = MessageBox.Show(
+                $"This will write the binary file to the chip with immediate verification.\n\nFile: {FlashFilePath}\n\nThis will take longer but ensures data integrity.\n\nContinue?",
+                "Flash ROM with Verify Confirmation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            IsBusy = true;
+            IsOperationInProgress = true;
+            ProgressPercentage = 0;
+            ProgressText = "Starting...";
+            StatusMessage = "Flashing ROM with verify...";
+
+            try
+            {
+                _cancellationTokenSource = new CancellationTokenSource();
+                AppendLog($"Starting flash with verify operation for file: {FlashFilePath}");
+
+                // Create progress reporter
+                var progress = new Progress<ProgressInfo>(progressInfo =>
+                {
+                    ProgressPercentage = progressInfo.Percentage;
+                    ProgressText = $"{progressInfo.Percentage:F1}% - {progressInfo.Status}";
+                    StatusMessage = $"Flashing with verify... {progressInfo.Percentage:F0}%";
+                });
+
+                var flashResult = await _service.FlashWithVerifyAsync(FlashFilePath, progress, _cancellationTokenSource.Token);
+
+                if (flashResult.Success)
+                {
+                    StatusMessage = "Flash ROM with verify completed successfully";
+                    ProgressText = "Complete";
+                    AppendLog($"Flash ROM with verify completed: {flashResult.Message}");
+                    
+                    // Show completion message
+                    MessageBox.Show(
+                        flashResult.Message,
+                        "Flash ROM with Verify Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    StatusMessage = $"Flash ROM with verify failed: {flashResult.Message}";
+                    ProgressText = "Failed";
+                    AppendLog($"Flash ROM with verify failed: {flashResult.Message}");
+                    
+                    // Show error message
+                    MessageBox.Show(
+                        $"Flash ROM with verify failed: {flashResult.Message}",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error: {ex.Message}";
+                ProgressText = "Error";
+                AppendLog($"Error during flash ROM with verify: {ex.Message}");
+                Logger.Error(ex, "Flash ROM with verify error in UI");
+                
+                MessageBox.Show(
+                    $"Flash ROM with verify error: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+                // Keep progress bar visible for 2 seconds so user can see final status
+                await Task.Delay(2000);
+                IsOperationInProgress = false;
+                ProgressPercentage = 0;
+            }
+        }
+
+        private void BrowseFlashFile()
+        {
+            try
+            {
+                var openFileDialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select Binary File to Flash",
+                    Filter = "Binary Files (*.bin)|*.bin|All Files (*.*)|*.*",
+                    DefaultExt = "bin"
+                };
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    FlashFilePath = openFileDialog.FileName;
+                    AppendLog($"Selected flash file: {FlashFilePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error opening file dialog");
+                AppendLog($"Error opening file dialog: {ex.Message}");
+                MessageBox.Show(
+                    $"Error opening file dialog: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
 

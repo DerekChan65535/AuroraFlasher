@@ -162,7 +162,8 @@
                                         Content="Browse..." 
                                         Command="{Binding BrowseFlashFileCommand}"
                                         Width="80" 
-                                        Height="25"/>
+                                        Height="25"
+                                        Style="{StaticResource StaticColorButtonStyle}"/>
                             </Grid>
                         </StackPanel>
                         
@@ -176,7 +177,8 @@
                                     Foreground="White"
                                     FontWeight="Bold"
                                     Margin="0,0,0,5"
-                                    ToolTip="Write binary file to chip starting at address 0x000000"/>
+                                    ToolTip="Write binary file to chip starting at address 0x000000"
+                                    Style="{StaticResource StaticColorButtonStyle}"/>
                             
                             <Button Content="Flash with Verify" 
                                     Command="{Binding FlashWithVerifyCommand}" 
@@ -185,7 +187,8 @@
                                     Background="#FF9800" 
                                     Foreground="White"
                                     FontWeight="Bold"
-                                    ToolTip="Write binary file with immediate page-by-page verification"/>
+                                    ToolTip="Write binary file with immediate page-by-page verification"
+                                    Style="{StaticResource StaticColorButtonStyle}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -254,7 +257,8 @@
                             <TextBlock Text="Activity Log" FontWeight="Bold" FontSize="14"/>
                             <Button Content="Clear" Command="{Binding ClearLogCommand}" 
                                     Width="60" Height="22" Margin="10,0,0,0"
-                                    FontSize="11"/>
+                                    FontSize="11"
+                                    Style="{StaticResource StaticColorButtonStyle}"/>
                         </StackPanel>
                         
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">

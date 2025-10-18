@@ -15,6 +15,34 @@
     
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        
+        <!-- Style for buttons that should not change color on focus -->
+        <Style x:Key="StaticColorButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Background}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Background}"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Background}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     
     <Grid Margin="10">
@@ -61,7 +89,8 @@
                     <Button Content="Read Memory" Command="{Binding ReadMemoryCommand}" 
                             Width="120" Height="30"
                             Background="#2196F3" Foreground="White"
-                            FontWeight="Bold"/>
+                            FontWeight="Bold"
+                            Style="{StaticResource StaticColorButtonStyle}"/>
                     
                     <Button Content="Clear Flash" 
                             Command="{Binding ClearFlashCommand}" 
@@ -70,7 +99,8 @@
                             Foreground="White"
                             FontWeight="Bold"
                             Margin="15,0,0,0"
-                            ToolTip="Erase entire chip and verify"/>
+                            ToolTip="Erase entire chip and verify"
+                            Style="{StaticResource StaticColorButtonStyle}"/>
                 </StackPanel>
             </Grid>
         </Border>

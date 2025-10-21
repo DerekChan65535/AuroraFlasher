@@ -103,13 +103,6 @@ namespace AuroraFlasher.ViewModels
             set => SetProperty(ref _readLength, value);
         }
 
-        private string _flashFilePath;
-        public string FlashFilePath
-        {
-            get => _flashFilePath;
-            set => SetProperty(ref _flashFilePath, value);
-        }
-
         public ObservableCollection<IHardware> AvailableDevices { get; }
 
         private IHardware _selectedDevice;
@@ -167,7 +160,7 @@ namespace AuroraFlasher.ViewModels
 
         public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
         public bool CanClearFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
-        public bool CanFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !string.IsNullOrEmpty(FlashFilePath);
+        public bool CanFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
 
         #endregion
 
@@ -176,7 +169,6 @@ namespace AuroraFlasher.ViewModels
         public ICommand ReadMemoryCommand { get; }
         public ICommand ClearLogCommand { get; }
         public ICommand ClearFlashCommand { get; }
-        public ICommand BrowseFlashFileCommand { get; }
         public ICommand FlashCommand { get; }
         public ICommand FlashWithVerifyCommand { get; }
 
@@ -200,7 +192,6 @@ namespace AuroraFlasher.ViewModels
             ReadMemoryCommand = new RelayCommand(async () => await ReadMemoryAsync(), () => CanRead);
             ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty);
             ClearFlashCommand = new RelayCommand(async () => await ClearFlashAsync(), () => CanClearFlash);
-            BrowseFlashFileCommand = new RelayCommand(() => BrowseFlashFile());
             FlashCommand = new RelayCommand(async () => await FlashAsync(), () => CanFlash);
             FlashWithVerifyCommand = new RelayCommand(async () => await FlashWithVerifyAsync(), () => CanFlash);
 
@@ -662,9 +653,14 @@ namespace AuroraFlasher.ViewModels
 
         private async Task FlashAsync()
         {
+            // Show file picker
+            var filePath = BrowseFlashFile();
+            if (string.IsNullOrEmpty(filePath))
+                return;
+
             // Show confirmation dialog
             var result = MessageBox.Show(
-                $"This will write the binary file to the chip starting at address 0x000000.\n\nFile: {FlashFilePath}\n\nContinue?",
+                $"This will write the binary file to the chip starting at address 0x000000.\n\nFile: {filePath}\n\nContinue?",
                 "Flash ROM Confirmation",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -681,7 +677,7 @@ namespace AuroraFlasher.ViewModels
             try
             {
                 _cancellationTokenSource = new CancellationTokenSource();
-                AppendLog($"Starting flash operation for file: {FlashFilePath}");
+                AppendLog($"Starting flash operation for file: {filePath}");
 
                 // Create progress reporter
                 var progress = new Progress<ProgressInfo>(progressInfo =>
@@ -691,7 +687,7 @@ namespace AuroraFlasher.ViewModels
                     StatusMessage = $"Flashing... {progressInfo.Percentage:F0}%";
                 });
 
-                var flashResult = await _service.FlashAsync(FlashFilePath, progress, _cancellationTokenSource.Token);
+                var flashResult = await _service.FlashAsync(filePath, progress, _cancellationTokenSource.Token);
 
                 if (flashResult.Success)
                 {
@@ -745,9 +741,14 @@ namespace AuroraFlasher.ViewModels
 
         private async Task FlashWithVerifyAsync()
         {
+            // Show file picker
+            var filePath = BrowseFlashFile();
+            if (string.IsNullOrEmpty(filePath))
+                return;
+
             // Show confirmation dialog
             var result = MessageBox.Show(
-                $"This will write the binary file to the chip with immediate verification.\n\nFile: {FlashFilePath}\n\nThis will take longer but ensures data integrity.\n\nContinue?",
+                $"This will write the binary file to the chip with immediate verification.\n\nFile: {filePath}\n\nThis will take longer but ensures data integrity.\n\nContinue?",
                 "Flash ROM with Verify Confirmation",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -764,7 +765,7 @@ namespace AuroraFlasher.ViewModels
             try
             {
                 _cancellationTokenSource = new CancellationTokenSource();
-                AppendLog($"Starting flash with verify operation for file: {FlashFilePath}");
+                AppendLog($"Starting flash with verify operation for file: {filePath}");
 
                 // Create progress reporter
                 var progress = new Progress<ProgressInfo>(progressInfo =>
@@ -774,7 +775,7 @@ namespace AuroraFlasher.ViewModels
                     StatusMessage = $"Flashing with verify... {progressInfo.Percentage:F0}%";
                 });
 
-                var flashResult = await _service.FlashWithVerifyAsync(FlashFilePath, progress, _cancellationTokenSource.Token);
+                var flashResult = await _service.FlashWithVerifyAsync(filePath, progress, _cancellationTokenSource.Token);
 
                 if (flashResult.Success)
                 {
@@ -826,7 +827,7 @@ namespace AuroraFlasher.ViewModels
             }
         }
 
-        private void BrowseFlashFile()
+        private string BrowseFlashFile()
         {
             try
             {
@@ -839,9 +840,11 @@ namespace AuroraFlasher.ViewModels
 
                 if (openFileDialog.ShowDialog() == true)
                 {
-                    FlashFilePath = openFileDialog.FileName;
-                    AppendLog($"Selected flash file: {FlashFilePath}");
+                    var filePath = openFileDialog.FileName;
+                    AppendLog($"Selected flash file: {filePath}");
+                    return filePath;
                 }
+                return null;
             }
             catch (Exception ex)
             {
@@ -852,6 +855,7 @@ namespace AuroraFlasher.ViewModels
                     "Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+                return null;
             }
         }
 

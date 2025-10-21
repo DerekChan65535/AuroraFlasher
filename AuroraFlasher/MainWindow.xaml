@@ -88,6 +88,26 @@
                             Margin="15,0,0,0"
                             ToolTip="Erase entire chip and verify"
                             Style="{StaticResource StaticColorButtonStyle}"/>
+                    
+                    <Button Content="Flash ROM" 
+                            Command="{Binding FlashCommand}" 
+                            Width="120" Height="30"
+                            Background="#4CAF50" 
+                            Foreground="White"
+                            FontWeight="Bold"
+                            Margin="15,0,0,0"
+                            ToolTip="Write binary file to chip starting at address 0x000000"
+                            Style="{StaticResource StaticColorButtonStyle}"/>
+                    
+                    <Button Content="Flash with Verify" 
+                            Command="{Binding FlashWithVerifyCommand}" 
+                            Width="120" Height="30"
+                            Background="#FF9800" 
+                            Foreground="White"
+                            FontWeight="Bold"
+                            Margin="15,0,0,0"
+                            ToolTip="Write binary file with immediate page-by-page verification"
+                            Style="{StaticResource StaticColorButtonStyle}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -120,63 +140,6 @@
                                    TextWrapping="Wrap"
                                    FontFamily="Consolas"
                                    FontSize="11"/>
-                    </StackPanel>
-                </Border>
-                
-                <!-- Flash ROM Controls -->
-                <Border BorderBrush="#CCCCCC" BorderThickness="1" Padding="10">
-                    <StackPanel>
-                        <TextBlock Text="Flash ROM" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
-                        
-                        <!-- File Selection -->
-                        <StackPanel Margin="0,0,0,10">
-                            <TextBlock Text="Binary File:" FontWeight="Bold" Margin="0,0,0,5"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <TextBox Grid.Column="0" 
-                                         Text="{Binding FlashFilePath, UpdateSourceTrigger=PropertyChanged}" 
-                                         Height="25" 
-                                         VerticalContentAlignment="Center"
-                                         Margin="0,0,5,0"
-                                         FontFamily="Consolas"
-                                         FontSize="11"/>
-                                
-                                <Button Grid.Column="1" 
-                                        Content="Browse..." 
-                                        Command="{Binding BrowseFlashFileCommand}"
-                                        Width="80" 
-                                        Height="25"
-                                        Style="{StaticResource StaticColorButtonStyle}"/>
-                            </Grid>
-                        </StackPanel>
-                        
-                        <!-- Flash Buttons -->
-                        <StackPanel>
-                            <Button Content="Flash ROM" 
-                                    Command="{Binding FlashCommand}" 
-                                    Width="120" 
-                                    Height="30"
-                                    Background="#4CAF50" 
-                                    Foreground="White"
-                                    FontWeight="Bold"
-                                    Margin="0,0,0,5"
-                                    ToolTip="Write binary file to chip starting at address 0x000000"
-                                    Style="{StaticResource StaticColorButtonStyle}"/>
-                            
-                            <Button Content="Flash with Verify" 
-                                    Command="{Binding FlashWithVerifyCommand}" 
-                                    Width="120" 
-                                    Height="30"
-                                    Background="#FF9800" 
-                                    Foreground="White"
-                                    FontWeight="Bold"
-                                    ToolTip="Write binary file with immediate page-by-page verification"
-                                    Style="{StaticResource StaticColorButtonStyle}"/>
-                        </StackPanel>
                     </StackPanel>
                 </Border>
             </StackPanel>

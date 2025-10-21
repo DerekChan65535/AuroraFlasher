@@ -285,22 +285,23 @@
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
-                    <ProgressBar Grid.Column="0" 
-                                 Height="20" 
-                                 Minimum="0" 
-                                 Maximum="100"
-                                 Value="{Binding ProgressPercentage, Mode=OneWay}"
-                                 Margin="0,0,10,0"/>
-                    
-                    <TextBlock Grid.Column="1" 
-                               Text="{Binding ProgressText}" 
-                               VerticalAlignment="Center"
-                               FontFamily="Consolas"
-                               FontSize="11"
-                               MinWidth="200"/>
+                    <!-- Progress Bar with Overlaid Text -->
+                    <Grid Grid.Column="0">
+                        <ProgressBar Height="20" 
+                                     Minimum="0" 
+                                     Maximum="100"
+                                     Value="{Binding ProgressPercentage, Mode=OneWay}"/>
+                        
+                        <TextBlock Text="{Binding ProgressText}" 
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   FontFamily="Consolas"
+                                   FontSize="11"
+                                   Foreground="Black"
+                                   FontWeight="Bold"/>
+                    </Grid>
                 </Grid>
             </Grid>
         </Border>

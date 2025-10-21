@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using AuroraFlasher.Logging;
 
 namespace AuroraFlasher.Commands
 {
@@ -11,39 +12,61 @@ namespace AuroraFlasher.Commands
     {
         private readonly Action<object> _execute;
         private readonly Predicate<object> _canExecute;
+        private readonly string _commandName;
+        private static int _instanceCounter = 0;
+        private readonly int _instanceId;
+        private event EventHandler _canExecuteChanged;
 
         public event EventHandler CanExecuteChanged
         {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
+            add 
+            { 
+                _canExecuteChanged += value;
+                CommandManager.RequerySuggested += value; 
+            }
+            remove 
+            { 
+                _canExecuteChanged -= value;
+                CommandManager.RequerySuggested -= value; 
+            }
         }
 
-        public RelayCommand(Action<object> execute, Predicate<object> canExecute = null)
+        public RelayCommand(Action<object> execute, Predicate<object> canExecute = null, string commandName = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
+            _commandName = commandName ?? "UnnamedCommand";
+            _instanceId = ++_instanceCounter;
+            Logger.Debug($"[RelayCommand] Created: {_commandName} (ID: {_instanceId})");
         }
 
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
+        public RelayCommand(Action execute, Func<bool> canExecute = null, string commandName = null)
             : this(
                 execute != null ? new Action<object>(_ => execute()) : null,
-                canExecute != null ? new Predicate<object>(_ => canExecute()) : null)
+                canExecute != null ? new Predicate<object>(_ => canExecute()) : null,
+                commandName)
         {
         }
 
         public bool CanExecute(object parameter)
         {
-            return _canExecute == null || _canExecute(parameter);
+            bool result = _canExecute == null || _canExecute(parameter);
+            Logger.Debug($"[RelayCommand] CanExecute called for '{_commandName}' (ID: {_instanceId}): {result}");
+            return result;
         }
 
         public void Execute(object parameter)
         {
+            Logger.Debug($"[RelayCommand] Execute called for '{_commandName}' (ID: {_instanceId})");
             _execute(parameter);
+            Logger.Debug($"[RelayCommand] Execute completed for '{_commandName}' (ID: {_instanceId})");
         }
 
         public void RaiseCanExecuteChanged()
         {
-            CommandManager.InvalidateRequerySuggested();
+            Logger.Debug($"[RelayCommand] RaiseCanExecuteChanged called for '{_commandName}' (ID: {_instanceId})");
+            // Directly raise the event for this specific command (best practice)
+            _canExecuteChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 

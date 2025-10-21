@@ -40,10 +40,24 @@ namespace AuroraFlasher.ViewModels
             get => _isConnected;
             set
             {
+                Logger.Debug($"[MainViewModel] IsConnected changing from {_isConnected} to {value}");
                 if (SetProperty(ref _isConnected, value))
                 {
+                    Logger.Debug($"[MainViewModel] IsConnected changed. CanRead={CanRead}, CanClearFlash={CanClearFlash}, CanFlash={CanFlash}");
                     OnPropertyChanged(nameof(CanRead));
+                    OnPropertyChanged(nameof(CanClearFlash));
+                    OnPropertyChanged(nameof(CanFlash));
                     OnPropertyChanged(nameof(ConnectionStatus));
+                    
+                    // Directly notify affected commands on UI thread (best practice)
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        _readMemoryCommand?.RaiseCanExecuteChanged();
+                        _clearFlashCommand?.RaiseCanExecuteChanged();
+                        _flashCommand?.RaiseCanExecuteChanged();
+                        _flashWithVerifyCommand?.RaiseCanExecuteChanged();
+                        Logger.Debug($"[MainViewModel] Commands notified directly");
+                    });
                 }
             }
         }
@@ -54,9 +68,23 @@ namespace AuroraFlasher.ViewModels
             get => _isBusy;
             set
             {
+                Logger.Debug($"[MainViewModel] IsBusy changing from {_isBusy} to {value}");
                 if (SetProperty(ref _isBusy, value))
                 {
+                    Logger.Debug($"[MainViewModel] IsBusy changed. CanRead={CanRead}, CanClearFlash={CanClearFlash}, CanFlash={CanFlash}");
                     OnPropertyChanged(nameof(CanRead));
+                    OnPropertyChanged(nameof(CanClearFlash));
+                    OnPropertyChanged(nameof(CanFlash));
+                    
+                    // Directly notify affected commands on UI thread (best practice)
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        _readMemoryCommand?.RaiseCanExecuteChanged();
+                        _clearFlashCommand?.RaiseCanExecuteChanged();
+                        _flashCommand?.RaiseCanExecuteChanged();
+                        _flashWithVerifyCommand?.RaiseCanExecuteChanged();
+                        Logger.Debug($"[MainViewModel] Commands notified directly");
+                    });
                 }
             }
         }
@@ -72,7 +100,27 @@ namespace AuroraFlasher.ViewModels
         public string ChipInfo
         {
             get => _chipInfo;
-            set => SetProperty(ref _chipInfo, value);
+            set
+            {
+                Logger.Debug($"[MainViewModel] ChipInfo changing from '{_chipInfo}' to '{value}'");
+                if (SetProperty(ref _chipInfo, value))
+                {
+                    Logger.Debug($"[MainViewModel] ChipInfo changed. CanRead={CanRead}, CanClearFlash={CanClearFlash}, CanFlash={CanFlash}");
+                    OnPropertyChanged(nameof(CanRead));
+                    OnPropertyChanged(nameof(CanClearFlash));
+                    OnPropertyChanged(nameof(CanFlash));
+                    
+                    // Directly notify affected commands on UI thread (best practice)
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        _readMemoryCommand?.RaiseCanExecuteChanged();
+                        _clearFlashCommand?.RaiseCanExecuteChanged();
+                        _flashCommand?.RaiseCanExecuteChanged();
+                        _flashWithVerifyCommand?.RaiseCanExecuteChanged();
+                        Logger.Debug($"[MainViewModel] Commands notified directly");
+                    });
+                }
+            }
         }
 
         private string _logOutput;
@@ -158,9 +206,9 @@ namespace AuroraFlasher.ViewModels
 
         #region Can Execute Properties
 
-        public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
-        public bool CanClearFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
-        public bool CanFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo);
+        public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
+        public bool CanClearFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
+        public bool CanFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
 
         #endregion
 
@@ -171,15 +219,23 @@ namespace AuroraFlasher.ViewModels
         public ICommand ClearFlashCommand { get; }
         public ICommand FlashCommand { get; }
         public ICommand FlashWithVerifyCommand { get; }
+        
+        // Store RelayCommand references for direct notification
+        private readonly RelayCommand _readMemoryCommand;
+        private readonly RelayCommand _clearFlashCommand;
+        private readonly RelayCommand _flashCommand;
+        private readonly RelayCommand _flashWithVerifyCommand;
 
         #endregion
 
         public MainViewModel()
         {
+            Logger.Debug("[MainViewModel] Constructor started");
             _service = new ProgrammerService();
             AvailableDevices = new ObservableCollection<IHardware>();
 
             // Initialize properties
+            Logger.Debug("[MainViewModel] Initializing properties...");
             StatusMessage = "Ready";
             DeviceInfo = "No device connected";
             ChipInfo = "No chip detected";
@@ -187,16 +243,27 @@ namespace AuroraFlasher.ViewModels
             HexLines = new ObservableCollection<HexLineData>();
             ReadAddress = "0x000000";
             ReadLength = "256";
+            Logger.Debug($"[MainViewModel] Properties initialized. IsConnected={IsConnected}, IsBusy={IsBusy}, ChipInfo='{ChipInfo}'");
 
-            // Initialize commands
-            ReadMemoryCommand = new RelayCommand(async () => await ReadMemoryAsync(), () => CanRead);
-            ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty);
-            ClearFlashCommand = new RelayCommand(async () => await ClearFlashAsync(), () => CanClearFlash);
-            FlashCommand = new RelayCommand(async () => await FlashAsync(), () => CanFlash);
-            FlashWithVerifyCommand = new RelayCommand(async () => await FlashWithVerifyAsync(), () => CanFlash);
+            // Initialize commands with stored references for direct notification
+            Logger.Debug("[MainViewModel] Initializing commands...");
+            _readMemoryCommand = new RelayCommand(async () => await ReadMemoryAsync(), () => CanRead, "ReadMemoryCommand");
+            _clearFlashCommand = new RelayCommand(async () => await ClearFlashAsync(), () => CanClearFlash, "ClearFlashCommand");
+            _flashCommand = new RelayCommand(async () => await FlashAsync(), () => CanFlash, "FlashCommand");
+            _flashWithVerifyCommand = new RelayCommand(async () => await FlashWithVerifyAsync(), () => CanFlash, "FlashWithVerifyCommand");
+            
+            ReadMemoryCommand = _readMemoryCommand;
+            ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty, null, "ClearLogCommand");
+            ClearFlashCommand = _clearFlashCommand;
+            FlashCommand = _flashCommand;
+            FlashWithVerifyCommand = _flashWithVerifyCommand;
+            Logger.Debug("[MainViewModel] Commands initialized");
 
             // Auto-enumerate on startup (will auto-connect and auto-detect if device present)
+            Logger.Debug("[MainViewModel] Starting auto-enumerate...");
             Task.Run(async () => await EnumerateDevicesAsync());
+            
+            Logger.Debug("[MainViewModel] Constructor completed");
         }
 
         #region Methods

@@ -16,27 +16,54 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         
-        <!-- Style for buttons that should not change color on focus -->
+        <!-- Enhanced button style with distinct visual states -->
         <Style x:Key="StaticColorButtonStyle" TargetType="Button">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
+                        <Border x:Name="ButtonBorder" 
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="3"
+                                Opacity="1.0">
                             <ContentPresenter HorizontalAlignment="Center" 
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- Disabled State - Grayed out -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.4"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                            
+                            <!-- Hover State - Slightly brighter -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Background}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.9"/>
+                                <Setter TargetName="ButtonBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="3" ShadowDepth="1"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
+                            
+                            <!-- Pressed State - Darker and inset -->
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Background}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.8"/>
+                                <Setter TargetName="ButtonBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="Black" Opacity="0.5" BlurRadius="1" ShadowDepth="-1"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
+                            
+                            <!-- Focus State - Subtle outline -->
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Background}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#FFFFFF"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="2"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -76,8 +103,7 @@
                     <Button Content="Read Memory" Command="{Binding ReadMemoryCommand}" 
                             Width="120" Height="30"
                             Background="#2196F3" Foreground="White"
-                            FontWeight="Bold"
-                            Style="{StaticResource StaticColorButtonStyle}"/>
+                            FontWeight="Bold"/>
                     
                     <Button Content="Clear Flash" 
                             Command="{Binding ClearFlashCommand}" 

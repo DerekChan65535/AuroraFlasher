@@ -57,24 +57,11 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <!-- Connection Controls -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="Hardware:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="Bold"/>
-                    <ComboBox ItemsSource="{Binding AvailableDevices}" 
-                              SelectedItem="{Binding SelectedDevice}"
-                              DisplayMemberPath="Name"
-                              Width="200" Margin="0,0,20,0"
-                              IsEnabled="False"/>
-                    
-                    <TextBlock Text="(Auto-connect and auto-detect enabled)" VerticalAlignment="Center" 
-                               Margin="0,0,20,0" FontStyle="Italic" Foreground="Gray"/>
-                </StackPanel>
                 
                 <!-- Read Controls -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal">
+                <StackPanel Grid.Row="0" Orientation="Horizontal">
                     <TextBlock Text="Read:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="Bold"/>
                     <TextBlock Text="Address:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                     <TextBox Text="{Binding ReadAddress, UpdateSourceTrigger=PropertyChanged}" 
@@ -290,7 +277,7 @@
                     
                     <TextBlock Grid.Column="0" Text="Status:" FontWeight="Bold" Margin="0,0,10,0"/>
                     <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"/>
-                    <TextBlock Grid.Column="2" Text="{Binding IsConnected, StringFormat='Connected: {0}'}" 
+                    <TextBlock Grid.Column="2" Text="{Binding ConnectionStatus}" 
                                Margin="20,0,0,0"/>
                 </Grid>
                 

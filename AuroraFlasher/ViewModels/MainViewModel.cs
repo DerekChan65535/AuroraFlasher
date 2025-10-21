@@ -43,6 +43,7 @@ namespace AuroraFlasher.ViewModels
                 if (SetProperty(ref _isConnected, value))
                 {
                     OnPropertyChanged(nameof(CanRead));
+                    OnPropertyChanged(nameof(ConnectionStatus));
                 }
             }
         }
@@ -115,7 +116,13 @@ namespace AuroraFlasher.ViewModels
         public IHardware SelectedDevice
         {
             get => _selectedDevice;
-            set => SetProperty(ref _selectedDevice, value);
+            set
+            {
+                if (SetProperty(ref _selectedDevice, value))
+                {
+                    OnPropertyChanged(nameof(ConnectionStatus));
+                }
+            }
         }
 
         private bool _isOperationInProgress;
@@ -137,6 +144,21 @@ namespace AuroraFlasher.ViewModels
         {
             get => _progressText;
             set => SetProperty(ref _progressText, value);
+        }
+
+        /// <summary>
+        /// Gets the connection status with device name
+        /// </summary>
+        public string ConnectionStatus
+        {
+            get
+            {
+                if (IsConnected && SelectedDevice != null)
+                {
+                    return $"Connected: {SelectedDevice.Name}";
+                }
+                return "Not Connected";
+            }
         }
 
         #endregion

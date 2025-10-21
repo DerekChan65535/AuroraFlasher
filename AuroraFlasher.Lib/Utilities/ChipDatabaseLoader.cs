@@ -29,7 +29,7 @@ namespace AuroraFlasher.Utilities
                 // Default to chiplist.xml in current directory
                 if (string.IsNullOrEmpty(filePath))
                 {
-                    string executablePath = AppDomain.CurrentDomain.BaseDirectory;
+                    var executablePath = AppDomain.CurrentDomain.BaseDirectory;
                     filePath = Path.Combine(executablePath, DefaultDatabaseFileName);
                 }
 
@@ -41,8 +41,8 @@ namespace AuroraFlasher.Utilities
 
                 Logger.Info($"Loading chip database from: {filePath}");
 
-                XDocument xmlDoc = XDocument.Load(filePath);
-                XElement root = xmlDoc.Element("chiplist");
+                var xmlDoc = XDocument.Load(filePath);
+                var root = xmlDoc.Element("chiplist");
 
                 if (root == null)
                 {
@@ -53,20 +53,20 @@ namespace AuroraFlasher.Utilities
                 // Iterate through protocol types (SPI, I2C, Microwire)
                 foreach (var protocolNode in root.Elements())
                 {
-                    string protocolName = protocolNode.Name.LocalName;
-                    ProtocolType protocolType = ParseProtocolType(protocolName);
+                    var protocolName = protocolNode.Name.LocalName;
+                    var protocolType = ParseProtocolType(protocolName);
 
                     // Iterate through manufacturer nodes
                     foreach (var manufacturerNode in protocolNode.Elements())
                     {
-                        string manufacturerName = manufacturerNode.Name.LocalName;
+                        var manufacturerName = manufacturerNode.Name.LocalName;
 
                         // Iterate through chip nodes
                         foreach (var chipNode in manufacturerNode.Elements())
                         {
                             try
                             {
-                                ChipInfo chip = ParseChipNode(chipNode, protocolType, manufacturerName);
+                                var chip = ParseChipNode(chipNode, protocolType, manufacturerName);
                                 if (chip != null)
                                 {
                                     chips.Add(chip);
@@ -95,16 +95,16 @@ namespace AuroraFlasher.Utilities
         /// </summary>
         private static ChipInfo ParseChipNode(XElement chipNode, ProtocolType protocolType, string manufacturerName)
         {
-            string chipName = chipNode.Name.LocalName;
+            var chipName = chipNode.Name.LocalName;
 
             // Extract attributes
-            string idAttr = (string)chipNode.Attribute("id");
-            string sizeAttr = (string)chipNode.Attribute("size");
-            string pageAttr = (string)chipNode.Attribute("page");
-            string spicmdAttr = (string)chipNode.Attribute("spicmd");
-            string scriptAttr = (string)chipNode.Attribute("script");
-            string addrtypeAttr = (string)chipNode.Attribute("addrtype");
-            string addrbitlenAttr = (string)chipNode.Attribute("addrbitlen");
+            var idAttr = (string)chipNode.Attribute("id");
+            var sizeAttr = (string)chipNode.Attribute("size");
+            var pageAttr = (string)chipNode.Attribute("page");
+            var spicmdAttr = (string)chipNode.Attribute("spicmd");
+            var scriptAttr = (string)chipNode.Attribute("script");
+            var addrtypeAttr = (string)chipNode.Attribute("addrtype");
+            var addrbitlenAttr = (string)chipNode.Attribute("addrbitlen");
 
             // Parse chip ID (JEDEC format: 3 hex bytes like "EF4016")
             byte manufacturerId = 0;
@@ -122,14 +122,14 @@ namespace AuroraFlasher.Utilities
             }
 
             // Parse size (in bytes)
-            int size = 0;
-            if (!string.IsNullOrEmpty(sizeAttr) && int.TryParse(sizeAttr, out int parsedSize))
+            var size = 0;
+            if (!string.IsNullOrEmpty(sizeAttr) && int.TryParse(sizeAttr, out var parsedSize))
             {
                 size = parsedSize;
             }
 
             // Parse page size
-            int pageSize = 256; // Default
+            var pageSize = 256; // Default
             if (!string.IsNullOrEmpty(pageAttr))
             {
                 if (pageAttr.ToUpper() == "SSTB")
@@ -140,14 +140,14 @@ namespace AuroraFlasher.Utilities
                 {
                     pageSize = -2; // SST AAI Word program
                 }
-                else if (int.TryParse(pageAttr, out int parsedPage))
+                else if (int.TryParse(pageAttr, out var parsedPage))
                 {
                     pageSize = parsedPage;
                 }
             }
 
             // Parse SPI command set
-            SpiCommandSet spiCommandSet = SpiCommandSet.Series25; // Default
+            var spiCommandSet = SpiCommandSet.Series25; // Default
             if (!string.IsNullOrEmpty(spicmdAttr))
             {
                 spiCommandSet = ParseSpiCommandSet(spicmdAttr);
@@ -168,7 +168,7 @@ namespace AuroraFlasher.Utilities
             }
 
             // Parse voltage from chip name if specified (e.g., "W25Q80BW_1.8V")
-            int voltage = ParseVoltageFromName(chipName);
+            var voltage = ParseVoltageFromName(chipName);
 
             // Create ChipInfo object
             var chip = new ChipInfo
@@ -210,7 +210,7 @@ namespace AuroraFlasher.Utilities
             };
 
             // Use IndexOf for case-insensitive search (.NET Framework 4.8 compatible)
-            string chipNameUpper = chipName.ToUpperInvariant();
+            var chipNameUpper = chipName.ToUpperInvariant();
             foreach (var pattern in voltagePatterns)
             {
                 if (chipNameUpper.IndexOf(pattern.Key.ToUpperInvariant(), StringComparison.OrdinalIgnoreCase) >= 0)
@@ -237,12 +237,12 @@ namespace AuroraFlasher.Utilities
                     return null;
                 }
 
-                int byteCount = hexId.Length / 2;
-                byte[] bytes = new byte[byteCount];
+                var byteCount = hexId.Length / 2;
+                var bytes = new byte[byteCount];
 
-                for (int i = 0; i < byteCount; i++)
+                for (var i = 0; i < byteCount; i++)
                 {
-                    string byteStr = hexId.Substring(i * 2, 2);
+                    var byteStr = hexId.Substring(i * 2, 2);
                     bytes[i] = Convert.ToByte(byteStr, 16);
                 }
 
@@ -354,7 +354,7 @@ namespace AuroraFlasher.Utilities
                 return false;
             }
 
-            int invalidCount = 0;
+            var invalidCount = 0;
 
             foreach (var chip in chips)
             {

@@ -66,7 +66,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             byte value = 0b11010110;
 
             // Act
-            byte result = BitOperations.GetBits(value, 2, 3); // Extract 3 bits starting at bit 2
+            var result = BitOperations.GetBits(value, 2, 3); // Extract 3 bits starting at bit 2
 
             // Assert
             Assert.AreEqual(0b101, result);
@@ -80,7 +80,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             byte expected = 0b10001101;
 
             // Act
-            byte result = BitOperations.ReverseBits(value);
+            var result = BitOperations.ReverseBits(value);
 
             // Assert
             Assert.AreEqual(expected, result);
@@ -95,9 +95,9 @@ namespace AuroraFlasher.UnitTest.Utilities
             byte value3 = 0b00000000; // 0 bits set
 
             // Act
-            int count1 = BitOperations.PopCount(value1);
-            int count2 = BitOperations.PopCount(value2);
-            int count3 = BitOperations.PopCount(value3);
+            var count1 = BitOperations.PopCount(value1);
+            var count2 = BitOperations.PopCount(value2);
+            var count3 = BitOperations.PopCount(value3);
 
             // Assert
             Assert.AreEqual(4, count1);
@@ -126,10 +126,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void ToHexString_ConvertsCorrectly()
         {
             // Arrange
-            byte[] data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+            var data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
 
             // Act
-            string result = HexConverter.ToHexString(data);
+            var result = HexConverter.ToHexString(data);
 
             // Assert
             Assert.AreEqual("DEADBEEF", result);
@@ -139,10 +139,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void ToHexString_WithSeparator_ConvertsCorrectly()
         {
             // Arrange
-            byte[] data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+            var data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
 
             // Act
-            string result = HexConverter.ToHexString(data, " ");
+            var result = HexConverter.ToHexString(data, " ");
 
             // Assert
             Assert.AreEqual("DE AD BE EF", result);
@@ -152,10 +152,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void FromHexString_ConvertsCorrectly()
         {
             // Arrange
-            string hex = "DEADBEEF";
+            var hex = "DEADBEEF";
 
             // Act
-            byte[] result = HexConverter.FromHexString(hex);
+            var result = HexConverter.FromHexString(hex);
 
             // Assert
             Assert.AreEqual(4, result.Length);
@@ -169,10 +169,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void FromHexString_WithSpaces_ConvertsCorrectly()
         {
             // Arrange
-            string hex = "DE AD BE EF";
+            var hex = "DE AD BE EF";
 
             // Act
-            byte[] result = HexConverter.FromHexString(hex);
+            var result = HexConverter.FromHexString(hex);
 
             // Assert
             Assert.AreEqual(4, result.Length);
@@ -183,10 +183,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void FromHexString_With0xPrefix_ConvertsCorrectly()
         {
             // Arrange
-            string hex = "0xDEADBEEF";
+            var hex = "0xDEADBEEF";
 
             // Act
-            byte[] result = HexConverter.FromHexString(hex);
+            var result = HexConverter.FromHexString(hex);
 
             // Assert
             Assert.AreEqual(4, result.Length);
@@ -198,7 +198,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void FromHexString_OddLength_ThrowsException()
         {
             // Arrange
-            string hex = "DEA"; // Odd length
+            var hex = "DEA"; // Odd length
 
             // Act
             HexConverter.FromHexString(hex);
@@ -210,12 +210,12 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void ToHexDump_FormatsCorrectly()
         {
             // Arrange
-            byte[] data = new byte[32];
-            for (int i = 0; i < 32; i++)
+            var data = new byte[32];
+            for (var i = 0; i < 32; i++)
                 data[i] = (byte)i;
 
             // Act
-            string result = HexConverter.ToHexDump(data, 16);
+            var result = HexConverter.ToHexDump(data, 16);
 
             // Assert
             Assert.IsTrue(result.Contains("00000000:"));
@@ -226,10 +226,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void TryFromHexString_ValidHex_ReturnsTrue()
         {
             // Arrange
-            string hex = "DEADBEEF";
+            var hex = "DEADBEEF";
 
             // Act
-            bool success = HexConverter.TryFromHexString(hex, out byte[] result);
+            var success = HexConverter.TryFromHexString(hex, out var result);
 
             // Assert
             Assert.IsTrue(success);
@@ -241,10 +241,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void TryFromHexString_InvalidHex_ReturnsFalse()
         {
             // Arrange
-            string hex = "XYZ";
+            var hex = "XYZ";
 
             // Act
-            bool success = HexConverter.TryFromHexString(hex, out byte[] result);
+            var success = HexConverter.TryFromHexString(hex, out var result);
 
             // Assert
             Assert.IsFalse(success);
@@ -259,10 +259,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void IsAll_AllSameValue_ReturnsTrue()
         {
             // Arrange
-            byte[] data = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
+            var data = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
 
             // Act
-            bool result = data.IsAll(0xFF);
+            var result = data.IsAll(0xFF);
 
             // Assert
             Assert.IsTrue(result);
@@ -272,10 +272,10 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void IsAll_NotAllSame_ReturnsFalse()
         {
             // Arrange
-            byte[] data = new byte[] { 0xFF, 0xFF, 0x00, 0xFF };
+            var data = new byte[] { 0xFF, 0xFF, 0x00, 0xFF };
 
             // Act
-            bool result = data.IsAll(0xFF);
+            var result = data.IsAll(0xFF);
 
             // Assert
             Assert.IsFalse(result);
@@ -285,11 +285,11 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void IsBlank_AllFF_ReturnsTrue()
         {
             // Arrange
-            byte[] data = new byte[256];
+            var data = new byte[256];
             data.Fill(0xFF);
 
             // Act
-            bool result = data.IsBlank();
+            var result = data.IsBlank();
 
             // Assert
             Assert.IsTrue(result);
@@ -299,12 +299,12 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void IsBlank_NotAllFF_ReturnsFalse()
         {
             // Arrange
-            byte[] data = new byte[256];
+            var data = new byte[256];
             data.Fill(0xFF);
             data[100] = 0x00;
 
             // Act
-            bool result = data.IsBlank();
+            var result = data.IsBlank();
 
             // Assert
             Assert.IsFalse(result);
@@ -314,7 +314,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void Fill_FillsArrayWithValue()
         {
             // Arrange
-            byte[] data = new byte[10];
+            var data = new byte[10];
 
             // Act
             data.Fill(0xAA);
@@ -327,11 +327,11 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void SequenceEqual_SameArrays_ReturnsTrue()
         {
             // Arrange
-            byte[] data1 = new byte[] { 1, 2, 3, 4, 5 };
-            byte[] data2 = new byte[] { 1, 2, 3, 4, 5 };
+            var data1 = new byte[] { 1, 2, 3, 4, 5 };
+            var data2 = new byte[] { 1, 2, 3, 4, 5 };
 
             // Act
-            bool result = data1.SequenceEqual(data2);
+            var result = data1.SequenceEqual(data2);
 
             // Assert
             Assert.IsTrue(result);
@@ -341,11 +341,11 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void SequenceEqual_DifferentArrays_ReturnsFalse()
         {
             // Arrange
-            byte[] data1 = new byte[] { 1, 2, 3, 4, 5 };
-            byte[] data2 = new byte[] { 1, 2, 3, 4, 6 };
+            var data1 = new byte[] { 1, 2, 3, 4, 5 };
+            var data2 = new byte[] { 1, 2, 3, 4, 6 };
 
             // Act
-            bool result = data1.SequenceEqual(data2);
+            var result = data1.SequenceEqual(data2);
 
             // Assert
             Assert.IsFalse(result);
@@ -355,11 +355,11 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void SequenceEqual_DifferentLengths_ReturnsFalse()
         {
             // Arrange
-            byte[] data1 = new byte[] { 1, 2, 3, 4, 5 };
-            byte[] data2 = new byte[] { 1, 2, 3, 4 };
+            var data1 = new byte[] { 1, 2, 3, 4, 5 };
+            var data2 = new byte[] { 1, 2, 3, 4 };
 
             // Act
-            bool result = data1.SequenceEqual(data2);
+            var result = data1.SequenceEqual(data2);
 
             // Assert
             Assert.IsFalse(result);

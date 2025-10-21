@@ -204,9 +204,9 @@ namespace AuroraFlasher.UnitTest.Protocols
         {
             // Arrange
             uint address = 0x1000;
-            int length = 256;
+            var length = 256;
             var expectedData = new byte[length];
-            for (int i = 0; i < length; i++)
+            for (var i = 0; i < length; i++)
                 expectedData[i] = (byte)(i & 0xFF);
 
             _mockHardware.Setup(h => h.SpiTransferAsync(
@@ -229,7 +229,7 @@ namespace AuroraFlasher.UnitTest.Protocols
         {
             // Arrange
             uint address = 0x1000;
-            int length = 0;
+            var length = 0;
 
             // Act
             var result = await _protocol.ReadAsync(address, length);

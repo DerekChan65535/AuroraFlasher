@@ -27,7 +27,7 @@ namespace AuroraFlasher.UnitTest.Models
         {
             // Arrange
             var chip = new ChipInfo();
-            bool eventRaised = false;
+            var eventRaised = false;
             string propertyName = null;
 
             chip.PropertyChanged += (sender, e) =>
@@ -51,7 +51,7 @@ namespace AuroraFlasher.UnitTest.Models
             var chip = new ChipInfo { Size = 4096 * 1024 }; // 4MB
 
             // Act
-            int sizeKB = chip.SizeKB;
+            var sizeKB = chip.SizeKB;
 
             // Assert
             Assert.AreEqual(4096, sizeKB);
@@ -64,7 +64,7 @@ namespace AuroraFlasher.UnitTest.Models
             var chip = new ChipInfo { Size = 4 * 1024 * 1024 }; // 4MB
 
             // Act
-            double sizeMB = chip.SizeMB;
+            var sizeMB = chip.SizeMB;
 
             // Assert
             Assert.AreEqual(4.0, sizeMB, 0.01);
@@ -81,7 +81,7 @@ namespace AuroraFlasher.UnitTest.Models
             };
 
             // Act
-            int pageCount = chip.PageCount;
+            var pageCount = chip.PageCount;
 
             // Assert
             Assert.AreEqual(16384, pageCount); // 4MB / 256 bytes
@@ -98,7 +98,7 @@ namespace AuroraFlasher.UnitTest.Models
             };
 
             // Act
-            string displayName = chip.DisplayName;
+            var displayName = chip.DisplayName;
 
             // Assert
             Assert.IsTrue(displayName.Contains("W25Q32"));
@@ -157,7 +157,7 @@ namespace AuroraFlasher.UnitTest.Models
             };
 
             // Act
-            string result = chip.ToString();
+            var result = chip.ToString();
 
             // Assert
             Assert.AreEqual(chip.DisplayName, result);
@@ -168,7 +168,7 @@ namespace AuroraFlasher.UnitTest.Models
         {
             // Arrange
             var chip = new ChipInfo();
-            int eventCount = 0;
+            var eventCount = 0;
 
             chip.PropertyChanged += (sender, e) => eventCount++;
 

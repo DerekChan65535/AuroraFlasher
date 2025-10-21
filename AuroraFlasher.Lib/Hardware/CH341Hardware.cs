@@ -51,12 +51,12 @@ namespace AuroraFlasher.Hardware
                 // Try to open up to 4 devices
                 for (uint i = 0; i < 4; i++)
                 {
-                    int handle = CH341Dll.CH341OpenDevice(i);
+                    var handle = CH341Dll.CH341OpenDevice(i);
                     if (handle >= 0)
                     {
                         // Device found
-                        uint version = CH341Dll.CH341GetVerIC(i);
-                        string deviceName = version == 0x20 ? $"CH341A Device #{i}" : $"CH341 Device #{i}";
+                        var version = CH341Dll.CH341GetVerIC(i);
+                        var deviceName = version == 0x20 ? $"CH341A Device #{i}" : $"CH341 Device #{i}";
                         devices.Add(deviceName);
                         Logger.Info($"Found device: {deviceName} (version=0x{version:X2}, handle={handle})");
                         
@@ -88,7 +88,7 @@ namespace AuroraFlasher.Hardware
                     if (!string.IsNullOrEmpty(devicePath))
                     {
                         var parts = devicePath.Split('#');
-                        if (parts.Length > 1 && uint.TryParse(parts[1], out uint index))
+                        if (parts.Length > 1 && uint.TryParse(parts[1], out var index))
                         {
                             _deviceIndex = index;
                         }
@@ -107,7 +107,7 @@ namespace AuroraFlasher.Hardware
                     Logger.Debug($"Device handle obtained: {_deviceHandle}");
 
                     // Check chip version
-                    uint version = CH341Dll.CH341GetVerIC(_deviceIndex);
+                    var version = CH341Dll.CH341GetVerIC(_deviceIndex);
                     _isCH341A = (version == 0x20);
 
                     if (version == 0)
@@ -129,7 +129,7 @@ namespace AuroraFlasher.Hardware
                     Logger.Debug("Flushed device buffer");
 
                     _isConnected = true;
-                    string successMsg = $"Opened {Name} (device #{_deviceIndex})";
+                    var successMsg = $"Opened {Name} (device #{_deviceIndex})";
                     Logger.Info(successMsg);
                     return OperationResult.SuccessResult(successMsg);
                 }
@@ -181,8 +181,8 @@ namespace AuroraFlasher.Hardware
                     ThrowIfNotConnected();
 
                     // Set stream mode for SPI (MSB first, standard I2C speed)
-                    uint mode = CH341Dll.MakeStreamMode(1, false, true);
-                    bool success = CH341Dll.CH341SetStream(_deviceIndex, mode);
+                    var mode = CH341Dll.MakeStreamMode(1, false, true);
+                    var success = CH341Dll.CH341SetStream(_deviceIndex, mode);
 
                     if (!success)
                         return OperationResult.FailureResult("Failed to initialize SPI mode");
@@ -210,10 +210,10 @@ namespace AuroraFlasher.Hardware
                 {
                     ThrowIfNotConnected();
 
-                    byte[] cmdBuffer = new byte[] { command };
-                    uint cs = CH341Dll.MakeChipSelect(0, true); // Use D0 as CS
+                    var cmdBuffer = new byte[] { command };
+                    var cs = CH341Dll.MakeChipSelect(0, true); // Use D0 as CS
 
-                    bool success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, 1, cmdBuffer);
+                    var success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, 1, cmdBuffer);
 
                     if (!success)
                         return OperationResult.FailureResult($"Failed to send SPI command 0x{command:X2}");
@@ -237,13 +237,13 @@ namespace AuroraFlasher.Hardware
 
                     Logger.Trace($"SpiReadAsync: Reading {length} bytes");
 
-                    byte[] buffer = new byte[length];
+                    var buffer = new byte[length];
                     // Fill with 0xFF (dummy bytes for read)
-                    for (int i = 0; i < length; i++)
+                    for (var i = 0; i < length; i++)
                         buffer[i] = 0xFF;
                     
-                    uint cs = CH341Dll.MakeChipSelect(0, true);
-                    bool success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, (uint)length, buffer);
+                    var cs = CH341Dll.MakeChipSelect(0, true);
+                    var success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, (uint)length, buffer);
 
                     if (!success)
                     {
@@ -278,8 +278,8 @@ namespace AuroraFlasher.Hardware
 
                     Logger.Trace($"SpiWriteAsync: Writing {data.Length} bytes (first byte: 0x{data[0]:X2})");
 
-                    uint cs = CH341Dll.MakeChipSelect(0, true);
-                    bool success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, (uint)data.Length, data);
+                    var cs = CH341Dll.MakeChipSelect(0, true);
+                    var success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, (uint)data.Length, data);
 
                     if (!success)
                     {
@@ -307,20 +307,20 @@ namespace AuroraFlasher.Hardware
                     ThrowIfNotConnected();
 
                     // Create buffer: write data + dummy bytes for read
-                    byte[] buffer = new byte[writeData.Length + readLength];
+                    var buffer = new byte[writeData.Length + readLength];
                     Array.Copy(writeData, 0, buffer, 0, writeData.Length);
                     // Fill remaining with 0xFF (dummy bytes for read)
-                    for (int i = 0; i < readLength; i++)
+                    for (var i = 0; i < readLength; i++)
                         buffer[writeData.Length + i] = 0xFF;
 
-                    uint cs = CH341Dll.MakeChipSelect(0, true);
-                    bool success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, (uint)buffer.Length, buffer);
+                    var cs = CH341Dll.MakeChipSelect(0, true);
+                    var success = CH341Dll.CH341StreamSPI4(_deviceIndex, cs, (uint)buffer.Length, buffer);
 
                     if (!success)
                         return OperationResult<byte[]>.FailureResult("SPI transfer failed");
 
                     // Extract read data (skip write portion)
-                    byte[] readData = new byte[readLength];
+                    var readData = new byte[readLength];
                     Array.Copy(buffer, writeData.Length, readData, 0, readLength);
 
                     return OperationResult<byte[]>.SuccessResult(readData, $"Transferred {writeData.Length} out, {readLength} in");
@@ -355,8 +355,8 @@ namespace AuroraFlasher.Hardware
                     else
                         speedMode = 3;     // 750 kHz (high speed)
 
-                    uint mode = CH341Dll.MakeStreamMode(speedMode, false, true);
-                    bool success = CH341Dll.CH341SetStream(_deviceIndex, mode);
+                    var mode = CH341Dll.MakeStreamMode(speedMode, false, true);
+                    var success = CH341Dll.CH341SetStream(_deviceIndex, mode);
 
                     if (!success)
                         return OperationResult.FailureResult("Failed to initialize I2C mode");
@@ -385,20 +385,20 @@ namespace AuroraFlasher.Hardware
             {
                 try
                 {
-                    uint dllVersion = CH341Dll.CH341GetVersion();
-                    uint drvVersion = CH341Dll.CH341GetDrvVersion();
-                    uint chipVersion = _isConnected ? CH341Dll.CH341GetVerIC(_deviceIndex) : 0;
+                    var dllVersion = CH341Dll.CH341GetVersion();
+                    var drvVersion = CH341Dll.CH341GetDrvVersion();
+                    var chipVersion = _isConnected ? CH341Dll.CH341GetVerIC(_deviceIndex) : 0;
 
-                    string chipName = chipVersion switch
+                    var chipName = chipVersion switch
                     {
                         0x10 => "CH341",
                         0x20 => "CH341A",
                         _ => "Unknown"
                     };
 
-                    string version = $"DLL: {(dllVersion >> 16) & 0xFF}.{(dllVersion >> 8) & 0xFF}.{dllVersion & 0xFF}, " +
-                                   $"Driver: {(drvVersion >> 16) & 0xFF}.{(drvVersion >> 8) & 0xFF}.{drvVersion & 0xFF}, " +
-                                   $"Chip: {chipName}";
+                    var version = $"DLL: {(dllVersion >> 16) & 0xFF}.{(dllVersion >> 8) & 0xFF}.{dllVersion & 0xFF}, " +
+                                  $"Driver: {(drvVersion >> 16) & 0xFF}.{(drvVersion >> 8) & 0xFF}.{drvVersion & 0xFF}, " +
+                                  $"Chip: {chipName}";
 
                     return OperationResult<string>.SuccessResult(version);
                 }

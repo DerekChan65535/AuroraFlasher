@@ -442,7 +442,7 @@ namespace AuroraFlasher.ViewModels
             try
             {
                 // Parse address
-                if (!TryParseHex(ReadAddress, out uint address))
+                if (!TryParseHex(ReadAddress, out var address))
                 {
                     StatusMessage = "Invalid address format";
                     AppendLog("Invalid address format. Use hex format like 0x000000");
@@ -450,7 +450,7 @@ namespace AuroraFlasher.ViewModels
                 }
 
                 // Parse length (support up to 64MB for large chips)
-                if (!int.TryParse(ReadLength, out int length) || length <= 0 || length > 67108864)
+                if (!int.TryParse(ReadLength, out var length) || length <= 0 || length > 67108864)
                 {
                     StatusMessage = "Invalid length (must be 1-67108864 bytes / 64MB)";
                     AppendLog("Invalid length. Must be between 1 and 67108864 bytes (64MB max)");
@@ -507,7 +507,7 @@ namespace AuroraFlasher.ViewModels
             if (string.IsNullOrWhiteSpace(input))
                 return false;
 
-            string cleaned = input.Trim().ToLower();
+            var cleaned = input.Trim().ToLower();
             if (cleaned.StartsWith("0x"))
                 cleaned = cleaned.Substring(2);
 
@@ -524,10 +524,10 @@ namespace AuroraFlasher.ViewModels
             {
                 HexLines.Clear();
 
-                int bytesPerLine = 16;
+                var bytesPerLine = 16;
                 var lines = new System.Collections.Generic.List<HexLineData>();
 
-                for (int i = 0; i < data.Length; i += bytesPerLine)
+                for (var i = 0; i < data.Length; i += bytesPerLine)
                 {
                     var sb = new StringBuilder();
 
@@ -535,8 +535,8 @@ namespace AuroraFlasher.ViewModels
                     sb.AppendFormat("{0:X4}:  ", startAddress + i);
 
                     // Hex bytes
-                    int lineLength = Math.Min(bytesPerLine, data.Length - i);
-                    for (int j = 0; j < lineLength; j++)
+                    var lineLength = Math.Min(bytesPerLine, data.Length - i);
+                    for (var j = 0; j < lineLength; j++)
                     {
                         sb.AppendFormat("{0:X2} ", data[i + j]);
                         if (j == 7) sb.Append(" "); // Extra space in middle
@@ -545,16 +545,16 @@ namespace AuroraFlasher.ViewModels
                     // Padding if incomplete line
                     if (lineLength < bytesPerLine)
                     {
-                        int padding = (bytesPerLine - lineLength) * 3;
+                        var padding = (bytesPerLine - lineLength) * 3;
                         if (lineLength <= 7) padding++; // Account for middle space
                         sb.Append(new string(' ', padding));
                     }
 
                     // ASCII representation
                     sb.Append("  ");
-                    for (int j = 0; j < lineLength; j++)
+                    for (var j = 0; j < lineLength; j++)
                     {
-                        byte b = data[i + j];
+                        var b = data[i + j];
                         sb.Append(b >= 32 && b <= 126 ? (char)b : '.');
                     }
 

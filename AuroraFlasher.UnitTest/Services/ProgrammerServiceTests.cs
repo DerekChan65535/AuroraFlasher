@@ -122,7 +122,7 @@ namespace AuroraFlasher.UnitTest.Services
         public async Task Connect_WithDevicePath_PassesPathToHardware()
         {
             // Arrange
-            string devicePath = "COM3";
+            var devicePath = "COM3";
             _mockHardware.Setup(h => h.OpenAsync(devicePath, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult.SuccessResult("Connected"));
 
@@ -307,7 +307,7 @@ namespace AuroraFlasher.UnitTest.Services
         public void ProgressChanged_CanSubscribeAndUnsubscribe()
         {
             // Arrange
-            int eventCount = 0;
+            var eventCount = 0;
             EventHandler<ProgressInfo> handler = (s, e) => eventCount++;
 
             // Act

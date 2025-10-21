@@ -46,7 +46,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_ValidXmlFile_ReturnsChips()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -82,7 +82,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_ChipWith18VVoltage_ParsesVoltageCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -105,7 +105,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_ChipWith25VVoltage_ParsesVoltageCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Macronix>
@@ -127,7 +127,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_ChipWith5VVoltage_ParsesVoltageCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Atmel>
@@ -149,7 +149,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_ChipWithoutVoltageSpecified_DefaultsTo33V()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -171,7 +171,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_MultipleProtocols_ParsesAllTypes()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -205,7 +205,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_FileNotFound_ReturnsEmptyList()
         {
             // Arrange
-            string nonExistentPath = Path.Combine(_testDirectory, "nonexistent.xml");
+            var nonExistentPath = Path.Combine(_testDirectory, "nonexistent.xml");
 
             // Act
             var chips = ChipDatabaseLoader.LoadDatabase(nonExistentPath);
@@ -219,7 +219,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_InvalidXml_ReturnsEmptyList()
         {
             // Arrange
-            string invalidXml = "This is not valid XML content!";
+            var invalidXml = "This is not valid XML content!";
             File.WriteAllText(_testXmlPath, invalidXml);
 
             // Act
@@ -234,7 +234,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_MissingRootElement_ReturnsEmptyList()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <wrongroot>
     <SPI>
         <Winbond>
@@ -256,7 +256,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_InvalidChipEntry_SkipsInvalidChip()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -294,7 +294,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_SSTPageTypes_ParsesCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <SST>
@@ -320,7 +320,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_DifferentManufacturers_ParsesCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -354,7 +354,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_CaseInsensitiveVoltage_ParsesCorrectly()
         {
             // Arrange - Test different case variations
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -399,7 +399,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             };
 
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(chips);
+            var result = ChipDatabaseLoader.ValidateDatabase(chips);
 
             // Assert
             Assert.IsTrue(result);
@@ -412,7 +412,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             var chips = new List<ChipInfo>();
 
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(chips);
+            var result = ChipDatabaseLoader.ValidateDatabase(chips);
 
             // Assert
             Assert.IsFalse(result);
@@ -422,7 +422,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void ValidateDatabase_NullList_ReturnsFalse()
         {
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(null);
+            var result = ChipDatabaseLoader.ValidateDatabase(null);
 
             // Assert
             Assert.IsFalse(result);
@@ -443,7 +443,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             };
 
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(chips);
+            var result = ChipDatabaseLoader.ValidateDatabase(chips);
 
             // Assert
             Assert.IsFalse(result);
@@ -464,7 +464,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             };
 
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(chips);
+            var result = ChipDatabaseLoader.ValidateDatabase(chips);
 
             // Assert
             Assert.IsFalse(result);
@@ -485,7 +485,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             };
 
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(chips);
+            var result = ChipDatabaseLoader.ValidateDatabase(chips);
 
             // Assert
             Assert.IsFalse(result);
@@ -506,7 +506,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             };
 
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(chips);
+            var result = ChipDatabaseLoader.ValidateDatabase(chips);
 
             // Assert
             Assert.IsFalse(result);
@@ -533,7 +533,7 @@ namespace AuroraFlasher.UnitTest.Utilities
             };
 
             // Act
-            bool result = ChipDatabaseLoader.ValidateDatabase(chips);
+            var result = ChipDatabaseLoader.ValidateDatabase(chips);
 
             // Assert
             Assert.IsFalse(result);
@@ -547,7 +547,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_UnknownManufacturer_DefaultsToOther()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <UnknownBrand>
@@ -569,7 +569,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_ManufacturerAliases_ParsesCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <W>
@@ -603,7 +603,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_ValidJedecId_ParsesCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -626,7 +626,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_MissingJedecId_DefaultsToZero()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -649,7 +649,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_InvalidJedecId_DefaultsToZero()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -676,7 +676,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_DifferentSpiCommandSets_ParsesCorrectly()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>
@@ -704,7 +704,7 @@ namespace AuroraFlasher.UnitTest.Utilities
         public void LoadDatabase_MissingSpiCommandSet_DefaultsToSeries25()
         {
             // Arrange
-            string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+            var xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <chiplist>
     <SPI>
         <Winbond>

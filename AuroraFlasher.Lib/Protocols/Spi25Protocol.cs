@@ -189,21 +189,21 @@ namespace AuroraFlasher.Protocols
                 Logger.Info($"Reading {length} bytes from address 0x{address:X6}");
                 var stopwatch = Stopwatch.StartNew();
                 var data = new byte[length];
-                int bytesRead = 0;
+                var bytesRead = 0;
                 const int chunkSize = 2048; // Read in 2KB chunks (CH341 hardware limit)
 
                 while (bytesRead < length)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    int remaining = length - bytesRead;
-                    int toRead = Math.Min(remaining, chunkSize);
-                    uint currentAddress = address + (uint)bytesRead;
+                    var remaining = length - bytesRead;
+                    var toRead = Math.Min(remaining, chunkSize);
+                    var currentAddress = address + (uint)bytesRead;
 
                     Logger.Debug($"Reading chunk: address=0x{currentAddress:X6}, size={toRead}, progress={bytesRead}/{length}");
 
                     // Build command with address
-                    byte[] cmd = _is4ByteMode
+                    var cmd = _is4ByteMode
                         ? new byte[] { CMD_READ_DATA, (byte)(currentAddress >> 24), (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress }
                         : new byte[] { CMD_READ_DATA, (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress };
 
@@ -250,19 +250,19 @@ namespace AuroraFlasher.Protocols
             {
                 var stopwatch = Stopwatch.StartNew();
                 var data = new byte[length];
-                int bytesRead = 0;
+                var bytesRead = 0;
                 const int chunkSize = 2048; // 2KB chunks for CH341 hardware limit
 
                 while (bytesRead < length)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    int remaining = length - bytesRead;
-                    int toRead = Math.Min(remaining, chunkSize);
-                    uint currentAddress = address + (uint)bytesRead;
+                    var remaining = length - bytesRead;
+                    var toRead = Math.Min(remaining, chunkSize);
+                    var currentAddress = address + (uint)bytesRead;
 
                     // Fast read requires dummy byte after address
-                    byte[] cmd = _is4ByteMode
+                    var cmd = _is4ByteMode
                         ? new byte[] { CMD_FAST_READ, (byte)(currentAddress >> 24), (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress, 0x00 }
                         : new byte[] { CMD_FAST_READ, (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress, 0x00 };
 
@@ -309,22 +309,22 @@ namespace AuroraFlasher.Protocols
 
                 Logger.Info($"Writing {data.Length} bytes to address 0x{address:X6}");
                 var stopwatch = Stopwatch.StartNew();
-                int bytesWritten = 0;
-                int pageSize = ChipInfo?.PageSize ?? 256;
+                var bytesWritten = 0;
+                var pageSize = ChipInfo?.PageSize ?? 256;
                 Logger.Debug($"Using page size: {pageSize} bytes");
 
                 while (bytesWritten < data.Length)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    uint currentAddress = address + (uint)bytesWritten;
+                    var currentAddress = address + (uint)bytesWritten;
                     
                     // Calculate bytes to write in this page (respect page boundaries)
-                    int pageOffset = (int)(currentAddress % pageSize);
-                    int bytesInPage = Math.Min(pageSize - pageOffset, data.Length - bytesWritten);
+                    var pageOffset = (int)(currentAddress % pageSize);
+                    var bytesInPage = Math.Min(pageSize - pageOffset, data.Length - bytesWritten);
 
                     // Extract page data
-                    byte[] pageData = new byte[bytesInPage];
+                    var pageData = new byte[bytesInPage];
                     Array.Copy(data, bytesWritten, pageData, 0, bytesInPage);
 
                     // Write page
@@ -371,12 +371,12 @@ namespace AuroraFlasher.Protocols
                     return wenResult;
 
                 // Build page program command with address
-                byte[] cmd = _is4ByteMode
+                var cmd = _is4ByteMode
                     ? new byte[] { CMD_PAGE_PROGRAM, (byte)(address >> 24), (byte)(address >> 16), (byte)(address >> 8), (byte)address }
                     : new byte[] { CMD_PAGE_PROGRAM, (byte)(address >> 16), (byte)(address >> 8), (byte)address };
 
                 // Combine command and data
-                byte[] fullCmd = new byte[cmd.Length + data.Length];
+                var fullCmd = new byte[cmd.Length + data.Length];
                 Array.Copy(cmd, 0, fullCmd, 0, cmd.Length);
                 Array.Copy(data, 0, fullCmd, cmd.Length, data.Length);
 
@@ -412,7 +412,7 @@ namespace AuroraFlasher.Protocols
                 if (!wenResult.Success)
                     return wenResult;
 
-                byte[] firstCmd = new byte[] { CMD_SST_AAI_BYTE, (byte)(address >> 16), (byte)(address >> 8), (byte)address, data[0] };
+                var firstCmd = new byte[] { CMD_SST_AAI_BYTE, (byte)(address >> 16), (byte)(address >> 8), (byte)address, data[0] };
                 var result = await _hardware.SpiWriteAsync(firstCmd, cancellationToken);
                 if (!result.Success)
                     return result;
@@ -420,11 +420,11 @@ namespace AuroraFlasher.Protocols
                 await WaitNotBusyAsync(5000, cancellationToken);
 
                 // Subsequent bytes - data only
-                for (int i = 1; i < data.Length; i++)
+                for (var i = 1; i < data.Length; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    byte[] nextCmd = new byte[] { CMD_SST_AAI_BYTE, data[i] };
+                    var nextCmd = new byte[] { CMD_SST_AAI_BYTE, data[i] };
                     result = await _hardware.SpiWriteAsync(nextCmd, cancellationToken);
                     if (!result.Success)
                         return result;
@@ -467,7 +467,7 @@ namespace AuroraFlasher.Protocols
                 if (!wenResult.Success)
                     return wenResult;
 
-                byte[] firstCmd = new byte[] { CMD_SST_AAI_WORD, (byte)(address >> 16), (byte)(address >> 8), (byte)address, data[0], data[1] };
+                var firstCmd = new byte[] { CMD_SST_AAI_WORD, (byte)(address >> 16), (byte)(address >> 8), (byte)address, data[0], data[1] };
                 var result = await _hardware.SpiWriteAsync(firstCmd, cancellationToken);
                 if (!result.Success)
                     return result;
@@ -475,11 +475,11 @@ namespace AuroraFlasher.Protocols
                 await WaitNotBusyAsync(5000, cancellationToken);
 
                 // Subsequent words
-                for (int i = 2; i < data.Length; i += 2)
+                for (var i = 2; i < data.Length; i += 2)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    byte[] nextCmd = new byte[] { CMD_SST_AAI_WORD, data[i], data[i + 1] };
+                    var nextCmd = new byte[] { CMD_SST_AAI_WORD, data[i], data[i + 1] };
                     result = await _hardware.SpiWriteAsync(nextCmd, cancellationToken);
                     if (!result.Success)
                         return result;
@@ -551,7 +551,7 @@ namespace AuroraFlasher.Protocols
                 if (!wenResult.Success)
                     return wenResult;
 
-                byte[] cmd = _is4ByteMode
+                var cmd = _is4ByteMode
                     ? new byte[] { CMD_SECTOR_ERASE, (byte)(address >> 24), (byte)(address >> 16), (byte)(address >> 8), (byte)address }
                     : new byte[] { CMD_SECTOR_ERASE, (byte)(address >> 16), (byte)(address >> 8), (byte)address };
 
@@ -579,7 +579,7 @@ namespace AuroraFlasher.Protocols
                 if (!wenResult.Success)
                     return wenResult;
 
-                byte[] cmd = _is4ByteMode
+                var cmd = _is4ByteMode
                     ? new byte[] { CMD_BLOCK_ERASE_32K, (byte)(address >> 24), (byte)(address >> 16), (byte)(address >> 8), (byte)address }
                     : new byte[] { CMD_BLOCK_ERASE_32K, (byte)(address >> 16), (byte)(address >> 8), (byte)address };
 
@@ -607,7 +607,7 @@ namespace AuroraFlasher.Protocols
                 if (!wenResult.Success)
                     return wenResult;
 
-                byte[] cmd = _is4ByteMode
+                var cmd = _is4ByteMode
                     ? new byte[] { CMD_BLOCK_ERASE_64K, (byte)(address >> 24), (byte)(address >> 16), (byte)(address >> 8), (byte)address }
                     : new byte[] { CMD_BLOCK_ERASE_64K, (byte)(address >> 16), (byte)(address >> 8), (byte)address };
 
@@ -632,15 +632,15 @@ namespace AuroraFlasher.Protocols
             try
             {
                 var stopwatch = Stopwatch.StartNew();
-                uint address = startAddress;
-                uint endAddress = startAddress + length;
+                var address = startAddress;
+                var endAddress = startAddress + length;
                 uint totalErased = 0;
 
                 while (address < endAddress)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    uint remaining = endAddress - address;
+                    var remaining = endAddress - address;
 
                     // Use largest possible erase size
                     if (remaining >= 65536 && (address % 65536) == 0)
@@ -692,7 +692,7 @@ namespace AuroraFlasher.Protocols
         {
             try
             {
-                byte cmd = registerIndex switch
+                var cmd = registerIndex switch
                 {
                     1 => CMD_READ_STATUS_REG,
                     2 => CMD_READ_STATUS_REG2,
@@ -723,7 +723,7 @@ namespace AuroraFlasher.Protocols
                 if (!wenResult.Success)
                     return wenResult;
 
-                byte cmd = registerIndex switch
+                var cmd = registerIndex switch
                 {
                     1 => CMD_WRITE_STATUS_REG,
                     2 => CMD_WRITE_STATUS_REG2,
@@ -811,7 +811,7 @@ namespace AuroraFlasher.Protocols
                 if (!statusResult.Success)
                     return OperationResult<bool>.FailureResult("Failed to read status register");
 
-                bool isProtected = (statusResult.Data & (STATUS_BP0 | STATUS_BP1 | STATUS_BP2 | STATUS_BP3)) != 0;
+                var isProtected = (statusResult.Data & (STATUS_BP0 | STATUS_BP1 | STATUS_BP2 | STATUS_BP3)) != 0;
                 return OperationResult<bool>.SuccessResult(isProtected, $"Write protection: {(isProtected ? "ON" : "OFF")}");
             }
             catch (Exception ex)
@@ -829,7 +829,7 @@ namespace AuroraFlasher.Protocols
                     return OperationResult.FailureResult("Failed to read current status");
 
                 // Preserve other bits, set BP bits
-                byte newStatus = (byte)((statusResult.Data & ~(STATUS_BP0 | STATUS_BP1 | STATUS_BP2 | STATUS_BP3)) | (level & 0x0F) << 2);
+                var newStatus = (byte)((statusResult.Data & ~(STATUS_BP0 | STATUS_BP1 | STATUS_BP2 | STATUS_BP3)) | (level & 0x0F) << 2);
                 
                 return await WriteStatusRegisterAsync(newStatus, 1, cancellationToken);
             }
@@ -848,7 +848,7 @@ namespace AuroraFlasher.Protocols
                     return OperationResult.FailureResult("Failed to read current status");
 
                 // Clear BP bits
-                byte newStatus = (byte)(statusResult.Data & ~(STATUS_BP0 | STATUS_BP1 | STATUS_BP2 | STATUS_BP3));
+                var newStatus = (byte)(statusResult.Data & ~(STATUS_BP0 | STATUS_BP1 | STATUS_BP2 | STATUS_BP3));
                 
                 return await WriteStatusRegisterAsync(newStatus, 1, cancellationToken);
             }
@@ -875,7 +875,7 @@ namespace AuroraFlasher.Protocols
                     return result;
 
                 // For Spansion chips, set EXTADD bit
-                byte[] extAddrCmd = new byte[] { CMD_WRITE_EXT_ADDR_REG, 0x80 };
+                var extAddrCmd = new byte[] { CMD_WRITE_EXT_ADDR_REG, 0x80 };
                 await _hardware.SpiWriteAsync(extAddrCmd, cancellationToken);
 
                 _is4ByteMode = true;
@@ -920,12 +920,12 @@ namespace AuroraFlasher.Protocols
                 if (!readResult.Success)
                     return OperationResult<bool>.FailureResult($"Verify failed: could not read data - {readResult.Message}");
 
-                bool matches = readResult.Data.SequenceEqual(data);
+                var matches = readResult.Data.SequenceEqual(data);
                 
                 if (!matches)
                 {
                     // Find first mismatch for debugging
-                    for (int i = 0; i < data.Length; i++)
+                    for (var i = 0; i < data.Length; i++)
                     {
                         if (readResult.Data[i] != data[i])
                         {
@@ -951,11 +951,11 @@ namespace AuroraFlasher.Protocols
                 if (!readResult.Success)
                     return OperationResult<bool>.FailureResult($"Blank check failed: could not read data - {readResult.Message}");
 
-                bool isBlank = readResult.Data.IsBlank();
+                var isBlank = readResult.Data.IsBlank();
                 
                 if (!isBlank)
                 {
-                    int nonBlankIndex = Array.FindIndex(readResult.Data, b => b != 0xFF);
+                    var nonBlankIndex = Array.FindIndex(readResult.Data, b => b != 0xFF);
                     return OperationResult<bool>.SuccessResult(false, 
                         $"Not blank: found 0x{readResult.Data[nonBlankIndex]:X2} at offset {nonBlankIndex} (0x{(address + nonBlankIndex):X6})");
                 }

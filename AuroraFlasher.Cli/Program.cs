@@ -14,10 +14,10 @@ namespace AuroraFlasher.Cli
         static async Task<int> Main(string[] args)
         {
             // Parse command line arguments
-            bool clearMode = args.Length > 0 && args[0] == "--clear";
-            bool flashMode = args.Length >= 2 && args[0] == "--flash";
-            bool flashVerifyMode = args.Length >= 2 && args[0] == "--flash-verify";
-            string filePath = flashMode || flashVerifyMode ? args[1] : null;
+            var clearMode = args.Length > 0 && args[0] == "--clear";
+            var flashMode = args.Length >= 2 && args[0] == "--flash";
+            var flashVerifyMode = args.Length >= 2 && args[0] == "--flash-verify";
+            var filePath = flashMode || flashVerifyMode ? args[1] : null;
             
             Console.WriteLine("========================================");
             Console.WriteLine("  AuroraFlasher Console Test");
@@ -73,7 +73,7 @@ namespace AuroraFlasher.Cli
                 }
 
                 Console.WriteLine($"   Found {devices.Length} device(s):");
-                for (int i = 0; i < devices.Length; i++)
+                for (var i = 0; i < devices.Length; i++)
                 {
                     Console.WriteLine($"   [{i}] {devices[i]}");
                 }
@@ -231,7 +231,7 @@ namespace AuroraFlasher.Cli
                 Console.WriteLine();
 
                 Console.WriteLine("========================================");
-                string operationName = clearMode ? "Clear flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with verify" : "Test";
+                var operationName = clearMode ? "Clear flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with verify" : "Test";
                 Console.WriteLine($"  {operationName} completed successfully!");
                 Console.WriteLine("========================================");
                 Console.WriteLine();
@@ -283,14 +283,14 @@ namespace AuroraFlasher.Cli
                 return string.Empty;
 
             var sb = new StringBuilder();
-            for (int i = 0; i < data.Length; i += bytesPerLine)
+            for (var i = 0; i < data.Length; i += bytesPerLine)
             {
                 // Address
                 sb.Append($"   {i:X4}:  ");
 
                 // Hex bytes
-                int lineLength = Math.Min(bytesPerLine, data.Length - i);
-                for (int j = 0; j < bytesPerLine; j++)
+                var lineLength = Math.Min(bytesPerLine, data.Length - i);
+                for (var j = 0; j < bytesPerLine; j++)
                 {
                     if (j < lineLength)
                         sb.Append($"{data[i + j]:X2} ");
@@ -303,9 +303,9 @@ namespace AuroraFlasher.Cli
 
                 // ASCII representation
                 sb.Append("  ");
-                for (int j = 0; j < lineLength; j++)
+                for (var j = 0; j < lineLength; j++)
                 {
-                    byte b = data[i + j];
+                    var b = data[i + j];
                     sb.Append((b >= 32 && b < 127) ? (char)b : '.');
                 }
 

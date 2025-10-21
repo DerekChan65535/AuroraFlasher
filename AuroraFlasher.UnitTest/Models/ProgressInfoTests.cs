@@ -28,7 +28,7 @@ namespace AuroraFlasher.UnitTest.Models
             // Arrange
             long bytesProcessed = 50;
             long totalBytes = 100;
-            string status = "Processing";
+            var status = "Processing";
 
             // Act
             var progress = new ProgressInfo(bytesProcessed, totalBytes, status);
@@ -64,7 +64,7 @@ namespace AuroraFlasher.UnitTest.Models
             
             // Act
             progress.Update(1000, "Reading");
-            double speed = progress.Speed;
+            var speed = progress.Speed;
 
             // Assert
             Assert.IsTrue(speed > 0, "Speed should be greater than zero");
@@ -77,7 +77,7 @@ namespace AuroraFlasher.UnitTest.Models
             var progress = new ProgressInfo(5000, 10000, "Reading memory");
 
             // Act
-            string result = progress.ToString();
+            var result = progress.ToString();
 
             // Assert
             Assert.IsTrue(result.Contains("50"), "Should contain percentage");

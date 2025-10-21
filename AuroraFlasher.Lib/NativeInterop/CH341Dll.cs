@@ -321,7 +321,7 @@ namespace AuroraFlasher.NativeInterop
         /// </summary>
         public static bool IsCH341A(uint iIndex)
         {
-            uint version = CH341GetVerIC(iIndex);
+            var version = CH341GetVerIC(iIndex);
             return version == 0x20; // 0x20 = CH341A, 0x10 = CH341
         }
 
@@ -348,7 +348,7 @@ namespace AuroraFlasher.NativeInterop
         /// <returns>Stream mode parameter</returns>
         public static uint MakeStreamMode(int i2cSpeed = 1, bool spiDualIO = false, bool spiMsbFirst = true)
         {
-            uint mode = (uint)(i2cSpeed & 0x03); // Bits 1-0: I2C speed
+            var mode = (uint)(i2cSpeed & 0x03); // Bits 1-0: I2C speed
             if (spiDualIO)
                 mode |= 0x04; // Bit 2: SPI dual I/O
             if (spiMsbFirst)

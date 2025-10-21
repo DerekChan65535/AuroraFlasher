@@ -56,11 +56,11 @@ namespace AuroraFlasher.Hardware
             try
             {
                 // Build command buffer: [CMD] [ADDR...] 
-                byte[] cmdBuffer = new byte[1 + addressBytes];
+                var cmdBuffer = new byte[1 + addressBytes];
                 cmdBuffer[0] = command;
 
                 // Add address bytes (big-endian)
-                for (int i = 0; i < addressBytes; i++)
+                for (var i = 0; i < addressBytes; i++)
                 {
                     cmdBuffer[1 + i] = (byte)(address >> ((addressBytes - 1 - i) * 8));
                 }
@@ -83,11 +83,11 @@ namespace AuroraFlasher.Hardware
             try
             {
                 // Build command buffer: [CMD] [ADDR...] [DATA...]
-                byte[] cmdBuffer = new byte[1 + addressBytes + data.Length];
+                var cmdBuffer = new byte[1 + addressBytes + data.Length];
                 cmdBuffer[0] = command;
 
                 // Add address bytes (big-endian)
-                for (int i = 0; i < addressBytes; i++)
+                for (var i = 0; i < addressBytes; i++)
                 {
                     cmdBuffer[1 + i] = (byte)(address >> ((addressBytes - 1 - i) * 8));
                 }

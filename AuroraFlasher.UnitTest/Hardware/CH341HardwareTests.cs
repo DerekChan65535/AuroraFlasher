@@ -36,7 +36,7 @@ namespace AuroraFlasher.UnitTest.Hardware
         public void Name_ReturnsCorrectName()
         {
             // Act
-            string name = _hardware.Name;
+            var name = _hardware.Name;
 
             // Assert
             Assert.IsNotNull(name);
@@ -185,7 +185,7 @@ namespace AuroraFlasher.UnitTest.Hardware
         public async Task SpiWriteAsync_WhenNotConnected_ThrowsException()
         {
             // Arrange
-            byte[] data = new byte[] { 0x01, 0x02, 0x03 };
+            var data = new byte[] { 0x01, 0x02, 0x03 };
 
             // Act & Assert
             await Assert.ThrowsExceptionAsync<InvalidOperationException>(
@@ -197,7 +197,7 @@ namespace AuroraFlasher.UnitTest.Hardware
         public async Task SpiTransferAsync_WhenNotConnected_ThrowsException()
         {
             // Arrange
-            byte[] writeData = new byte[] { 0x9F };
+            var writeData = new byte[] { 0x9F };
 
             // Act & Assert
             await Assert.ThrowsExceptionAsync<InvalidOperationException>(

@@ -175,7 +175,7 @@ namespace AuroraFlasher.Utilities
 
                 if (_notificationHandle == IntPtr.Zero)
                 {
-                    int error = Marshal.GetLastWin32Error();
+                    var error = Marshal.GetLastWin32Error();
                     throw new Win32Exception(error, "Failed to register USB device notifications");
                 }
 
@@ -208,7 +208,7 @@ namespace AuroraFlasher.Utilities
         {
             if (msg == WM_DEVICECHANGE)
             {
-                int eventType = wParam.ToInt32();
+                var eventType = wParam.ToInt32();
 
                 switch (eventType)
                 {
@@ -237,9 +237,9 @@ namespace AuroraFlasher.Utilities
                         lParam,
                         typeof(DEV_BROADCAST_DEVICEINTERFACE));
 
-                    string deviceName = deviceInterface.dbcc_name;
-                    string vid = GetVid(deviceName);
-                    string pid = GetPid(deviceName);
+                    var deviceName = deviceInterface.dbcc_name;
+                    var vid = GetVid(deviceName);
+                    var pid = GetPid(deviceName);
 
                     Logger.Debug($"USB device {(isArrival ? "arrived" : "removed")}: VID={vid}, PID={pid}");
 

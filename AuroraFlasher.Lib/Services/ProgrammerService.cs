@@ -285,7 +285,7 @@ namespace AuroraFlasher.Services
                 // Set selected chip as the active chip for the protocol
                 _spiProtocol.ChipInfo = selectedChip;
 
-                string successMsg = $"Detected: {selectedChip.Name} ({selectedChip.SizeKB}KB)";
+                var successMsg = $"Detected: {selectedChip.Name} ({selectedChip.SizeKB}KB)";
                 Logger.Info(successMsg);
 
                 // Return single-item list for API compatibility
@@ -325,7 +325,7 @@ namespace AuroraFlasher.Services
                 var baseChip = chips[0];
                 
                 // Create folded name
-                string foldedName = CreateFoldedName(chips);
+                var foldedName = CreateFoldedName(chips);
                 
                 Logger.Info($"Multiple candidates with same size ({size} bytes), folding to: {foldedName}");
                 
@@ -374,12 +374,12 @@ namespace AuroraFlasher.Services
             var sortedNames = chips.Select(c => c.Name).OrderBy(n => n).ToList();
             
             // Find common prefix
-            string baseName = sortedNames[0];
-            string commonPrefix = baseName;
+            var baseName = sortedNames[0];
+            var commonPrefix = baseName;
             
             foreach (var name in sortedNames.Skip(1))
             {
-                int i = 0;
+                var i = 0;
                 while (i < commonPrefix.Length && i < name.Length && commonPrefix[i] == name[i])
                     i++;
                 commonPrefix = commonPrefix.Substring(0, i);
@@ -402,8 +402,8 @@ namespace AuroraFlasher.Services
             }
 
             // Build folded name: "MX25Q128FV(JV/RV)"
-            string firstSuffix = suffixes[0];
-            string otherSuffixes = string.Join("/", suffixes.Skip(1));
+            var firstSuffix = suffixes[0];
+            var otherSuffixes = string.Join("/", suffixes.Skip(1));
             
             return $"{commonPrefix}{firstSuffix}({otherSuffixes})";
         }
@@ -429,8 +429,8 @@ namespace AuroraFlasher.Services
             // Primary match: Use JEDEC ID (bytes 1 and 2) if available
             if (memoryId.JedecId != null && memoryId.JedecId.Length >= 3)
             {
-                byte jedecManufacturer = memoryId.JedecId[0];
-                ushort jedecDeviceId = (ushort)((memoryId.JedecId[1] << 8) | memoryId.JedecId[2]);
+                var jedecManufacturer = memoryId.JedecId[0];
+                var jedecDeviceId = (ushort)((memoryId.JedecId[1] << 8) | memoryId.JedecId[2]);
 
                 foreach (var chip in _chipDatabase)
                 {
@@ -936,7 +936,7 @@ namespace AuroraFlasher.Services
                 
                 // Calculate sample count: Much smaller for practical verification
                 // For 1MB chip: 1000 samples, for 8MB chip: 2000 samples, max 2000
-                int sampleCount = Math.Min(2000, Math.Max(100, (int)(chipSize / 1024)));
+                var sampleCount = Math.Min(2000, Math.Max(100, (int)(chipSize / 1024)));
                 Logger.Info($"Will verify {sampleCount} random addresses (optimized for performance)");
 
                 var verificationResult = await VerifyRandomAddressesAsync((uint)chipSize, sampleCount, progressHandler, cancellationToken);
@@ -974,13 +974,13 @@ namespace AuroraFlasher.Services
             var addresses = new HashSet<uint>();
             
             // Generate addresses aligned to 256-byte boundaries (page boundaries)
-            int maxPages = (int)(chipSize / 256);
+            var maxPages = (int)(chipSize / 256);
             
             while (addresses.Count < sampleCount)
             {
                 // Generate random page-aligned address
-                uint pageIndex = (uint)random.Next(maxPages);
-                uint addr = pageIndex * 256;
+                var pageIndex = (uint)random.Next(maxPages);
+                var addr = pageIndex * 256;
                 addresses.Add(addr);
             }
             
@@ -1001,7 +1001,7 @@ namespace AuroraFlasher.Services
             {
                 var addresses = GenerateRandomAddresses(chipSize, sampleCount);
                 var failures = new List<uint>();
-                int count = 0;
+                var count = 0;
                 var startTime = DateTime.Now;
                 
                 Logger.Info($"Starting verification of {addresses.Count} addresses...");
@@ -1031,7 +1031,7 @@ namespace AuroraFlasher.Services
                         if (!readResult.Data.All(b => b == 0xFF))
                         {
                             // Find first non-0xFF byte for logging
-                            int firstNonFF = Array.FindIndex(readResult.Data, b => b != 0xFF);
+                            var firstNonFF = Array.FindIndex(readResult.Data, b => b != 0xFF);
                             Logger.Warn($"Address 0x{addr:X6} not erased: found 0x{readResult.Data[firstNonFF]:X2} at offset {firstNonFF}");
                             failures.Add(addr);
                         }
@@ -1044,7 +1044,7 @@ namespace AuroraFlasher.Services
                     count++;
                     
                     // Report progress (50-100%) and log every 100 addresses
-                    int progressPercent = 50 + (count * 50 / addresses.Count);
+                    var progressPercent = 50 + (count * 50 / addresses.Count);
                     progress?.Report(new ProgressInfo(count, addresses.Count, $"Verifying {count}/{addresses.Count} addresses..."));
                     
                     if (count % 50 == 0 || count == addresses.Count)
@@ -1192,7 +1192,7 @@ namespace AuroraFlasher.Services
                 Logger.Info($"Verifying {romData.Length:N0} bytes are all 0xFF...");
 
                 // Find first non-0xFF byte
-                int firstNonFF = Array.FindIndex(romData, b => b != 0xFF);
+                var firstNonFF = Array.FindIndex(romData, b => b != 0xFF);
                 
                 if (firstNonFF == -1)
                 {
@@ -1203,11 +1203,11 @@ namespace AuroraFlasher.Services
                 else
                 {
                     // Found non-0xFF byte
-                    byte nonFFByte = romData[firstNonFF];
+                    var nonFFByte = romData[firstNonFF];
                     Logger.Warn($"Verification failed: Found 0x{nonFFByte:X2} at address 0x{firstNonFF:X6}");
                     
                     // Count total non-0xFF bytes for statistics
-                    int nonFFCount = romData.Count(b => b != 0xFF);
+                    var nonFFCount = romData.Count(b => b != 0xFF);
                     Logger.Warn($"Total non-0xFF bytes found: {nonFFCount:N0} out of {romData.Length:N0}");
                     
                     return OperationResult.FailureResult($"ROM not fully erased: Found 0x{nonFFByte:X2} at address 0x{firstNonFF:X6} ({nonFFCount:N0} non-0xFF bytes total)");
@@ -1326,12 +1326,12 @@ namespace AuroraFlasher.Services
                 Logger.Info($"Page size: {_spiProtocol.ChipInfo.PageSize} bytes");
 
                 // 3. Get page size from chip info
-                int pageSize = _spiProtocol.ChipInfo.PageSize;
+                var pageSize = _spiProtocol.ChipInfo.PageSize;
                 Logger.Debug($"Using page size: {pageSize} bytes");
 
                 // 4. Write page-by-page with immediate verification
                 var stopwatch = Stopwatch.StartNew();
-                int bytesWritten = 0;
+                var bytesWritten = 0;
                 uint currentAddress = 0;
 
                 while (bytesWritten < fileData.Length)
@@ -1339,11 +1339,11 @@ namespace AuroraFlasher.Services
                     cancellationToken.ThrowIfCancellationRequested();
 
                     // Calculate bytes to write in this page
-                    int remainingBytes = fileData.Length - bytesWritten;
-                    int bytesInPage = Math.Min(pageSize, remainingBytes);
+                    var remainingBytes = fileData.Length - bytesWritten;
+                    var bytesInPage = Math.Min(pageSize, remainingBytes);
 
                     // Extract page data
-                    byte[] pageData = new byte[bytesInPage];
+                    var pageData = new byte[bytesInPage];
                     Array.Copy(fileData, bytesWritten, pageData, 0, bytesInPage);
 
                     Logger.Debug($"Writing page at address 0x{currentAddress:X6}, size: {bytesInPage} bytes");
@@ -1367,9 +1367,9 @@ namespace AuroraFlasher.Services
                     }
 
                     // Compare data byte-by-byte
-                    bool dataMatches = true;
-                    int firstMismatchIndex = -1;
-                    for (int i = 0; i < bytesInPage; i++)
+                    var dataMatches = true;
+                    var firstMismatchIndex = -1;
+                    for (var i = 0; i < bytesInPage; i++)
                     {
                         if (readResult.Data[i] != pageData[i])
                         {
@@ -1381,9 +1381,9 @@ namespace AuroraFlasher.Services
 
                     if (!dataMatches)
                     {
-                        uint errorAddress = currentAddress + (uint)firstMismatchIndex;
-                        byte expectedByte = pageData[firstMismatchIndex];
-                        byte actualByte = readResult.Data[firstMismatchIndex];
+                        var errorAddress = currentAddress + (uint)firstMismatchIndex;
+                        var expectedByte = pageData[firstMismatchIndex];
+                        var actualByte = readResult.Data[firstMismatchIndex];
                         
                         Logger.Error($"Verify failed at address 0x{errorAddress:X6}: expected 0x{expectedByte:X2}, got 0x{actualByte:X2}");
                         return OperationResult.FailureResult($"Verify failed at address 0x{errorAddress:X6}: expected 0x{expectedByte:X2}, got 0x{actualByte:X2}");
@@ -1462,7 +1462,7 @@ namespace AuroraFlasher.Services
             }
 
             // Check file extension
-            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
             if (extension != ".bin")
             {
                 Logger.Error($"Invalid file extension: {extension}. Only .bin files are supported");
@@ -1473,7 +1473,7 @@ namespace AuroraFlasher.Services
             try
             {
                 var fileInfo = new FileInfo(filePath);
-                long fileSize = fileInfo.Length;
+                var fileSize = fileInfo.Length;
                 long chipSize = _spiProtocol.ChipInfo.Size;
 
                 Logger.Debug($"File size: {fileSize:N0} bytes, Chip size: {chipSize:N0} bytes");

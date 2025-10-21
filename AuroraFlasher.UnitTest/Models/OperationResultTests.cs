@@ -24,7 +24,7 @@ namespace AuroraFlasher.UnitTest.Models
         public void OperationResult_SuccessResult_CreatesSuccessWithMessage()
         {
             // Arrange
-            string message = "Operation completed successfully";
+            var message = "Operation completed successfully";
 
             // Act
             var result = OperationResult.SuccessResult(message);
@@ -39,7 +39,7 @@ namespace AuroraFlasher.UnitTest.Models
         public void OperationResult_FailureResult_CreatesFailureWithMessageAndException()
         {
             // Arrange
-            string message = "Operation failed";
+            var message = "Operation failed";
             var exception = new InvalidOperationException("Test exception");
 
             // Act
@@ -55,8 +55,8 @@ namespace AuroraFlasher.UnitTest.Models
         public void OperationResultGeneric_SuccessResult_ContainsData()
         {
             // Arrange
-            string testData = "Test Data";
-            string message = "Data retrieved";
+            var testData = "Test Data";
+            var message = "Data retrieved";
 
             // Act
             var result = OperationResult<string>.SuccessResult(testData, message);
@@ -71,7 +71,7 @@ namespace AuroraFlasher.UnitTest.Models
         public void OperationResultGeneric_FailureResult_DataIsDefault()
         {
             // Arrange
-            string message = "Failed to get data";
+            var message = "Failed to get data";
 
             // Act
             var result = OperationResult<string>.FailureResult(message);
@@ -90,8 +90,8 @@ namespace AuroraFlasher.UnitTest.Models
             var failureResult = OperationResult.FailureResult("Something went wrong");
 
             // Act
-            string successString = successResult.ToString();
-            string failureString = failureResult.ToString();
+            var successString = successResult.ToString();
+            var failureString = failureResult.ToString();
 
             // Assert
             Assert.IsTrue(successString.Contains("Success"));

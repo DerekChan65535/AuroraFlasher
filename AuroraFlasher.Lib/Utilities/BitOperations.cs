@@ -43,7 +43,7 @@ namespace AuroraFlasher.Utilities
             if (bitCount < 1 || bitCount > 8)
                 throw new ArgumentOutOfRangeException(nameof(bitCount));
 
-            int mask = (1 << bitCount) - 1;
+            var mask = (1 << bitCount) - 1;
             return (byte)((value >> startBit) & mask);
         }
 
@@ -53,7 +53,7 @@ namespace AuroraFlasher.Utilities
         public static byte ReverseBits(byte value)
         {
             byte result = 0;
-            for (int i = 0; i < 8; i++)
+            for (var i = 0; i < 8; i++)
             {
                 result <<= 1;
                 result |= (byte)(value & 1);
@@ -67,7 +67,7 @@ namespace AuroraFlasher.Utilities
         /// </summary>
         public static int PopCount(byte value)
         {
-            int count = 0;
+            var count = 0;
             while (value != 0)
             {
                 count++;
@@ -93,7 +93,7 @@ namespace AuroraFlasher.Utilities
                 return string.Empty;
 
             var sb = new StringBuilder(data.Length * (2 + separator.Length));
-            for (int i = 0; i < data.Length; i++)
+            for (var i = 0; i < data.Length; i++)
             {
                 if (i > 0 && separator.Length > 0)
                     sb.Append(separator);
@@ -118,8 +118,8 @@ namespace AuroraFlasher.Utilities
             if (hex.Length % 2 != 0)
                 throw new ArgumentException("Hex string must have even length", nameof(hex));
 
-            byte[] result = new byte[hex.Length / 2];
-            for (int i = 0; i < result.Length; i++)
+            var result = new byte[hex.Length / 2];
+            for (var i = 0; i < result.Length; i++)
             {
                 result[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
             }
@@ -135,7 +135,7 @@ namespace AuroraFlasher.Utilities
                 return string.Empty;
 
             var sb = new StringBuilder();
-            for (int i = 0; i < data.Length; i += bytesPerLine)
+            for (var i = 0; i < data.Length; i += bytesPerLine)
             {
                 // Address
                 if (showAddress)
@@ -144,8 +144,8 @@ namespace AuroraFlasher.Utilities
                 }
 
                 // Hex bytes
-                int lineLength = Math.Min(bytesPerLine, data.Length - i);
-                for (int j = 0; j < bytesPerLine; j++)
+                var lineLength = Math.Min(bytesPerLine, data.Length - i);
+                for (var j = 0; j < bytesPerLine; j++)
                 {
                     if (j < lineLength)
                         sb.AppendFormat("{0:X2} ", data[i + j]);
@@ -160,9 +160,9 @@ namespace AuroraFlasher.Utilities
                 if (showAscii)
                 {
                     sb.Append(" | ");
-                    for (int j = 0; j < lineLength; j++)
+                    for (var j = 0; j < lineLength; j++)
                     {
-                        byte b = data[i + j];
+                        var b = data[i + j];
                         sb.Append(b >= 32 && b < 127 ? (char)b : '.');
                     }
                 }
@@ -203,7 +203,7 @@ namespace AuroraFlasher.Utilities
             if (data == null || data.Length == 0)
                 return false;
 
-            for (int i = 0; i < data.Length; i++)
+            for (var i = 0; i < data.Length; i++)
             {
                 if (data[i] != value)
                     return false;
@@ -227,7 +227,7 @@ namespace AuroraFlasher.Utilities
             if (data == null)
                 return;
 
-            for (int i = 0; i < data.Length; i++)
+            for (var i = 0; i < data.Length; i++)
             {
                 data[i] = value;
             }
@@ -244,7 +244,7 @@ namespace AuroraFlasher.Utilities
             if (first.Length != second.Length)
                 return false;
 
-            for (int i = 0; i < first.Length; i++)
+            for (var i = 0; i < first.Length; i++)
             {
                 if (first[i] != second[i])
                     return false;
@@ -265,7 +265,7 @@ namespace AuroraFlasher.Utilities
             if (count < 0 || start + count > array.Length)
                 throw new ArgumentOutOfRangeException(nameof(count));
 
-            for (int i = 0; i < count; i++)
+            for (var i = 0; i < count; i++)
                 array[start + i] = value;
         }
     }

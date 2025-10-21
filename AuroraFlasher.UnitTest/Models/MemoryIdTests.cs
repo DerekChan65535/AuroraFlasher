@@ -22,7 +22,7 @@ namespace AuroraFlasher.UnitTest.Models
         public void MemoryId_ConstructorWithJedec_ParsesCorrectly()
         {
             // Arrange
-            byte[] jedecId = new byte[] { 0xEF, 0x40, 0x16 }; // Winbond W25Q32
+            var jedecId = new byte[] { 0xEF, 0x40, 0x16 }; // Winbond W25Q32
 
             // Act
             var memId = new MemoryId(jedecId);
@@ -56,7 +56,7 @@ namespace AuroraFlasher.UnitTest.Models
             var memId2 = new MemoryId(0xEF, 0x4016);
 
             // Act
-            bool matches = memId1.Matches(memId2);
+            var matches = memId1.Matches(memId2);
 
             // Assert
             Assert.IsTrue(matches);
@@ -70,7 +70,7 @@ namespace AuroraFlasher.UnitTest.Models
             var memId2 = new MemoryId(0xC2, 0x2016);
 
             // Act
-            bool matches = memId1.Matches(memId2);
+            var matches = memId1.Matches(memId2);
 
             // Assert
             Assert.IsFalse(matches);
@@ -83,7 +83,7 @@ namespace AuroraFlasher.UnitTest.Models
             var memId = new MemoryId(0xFF, 0xFFFF);
 
             // Act
-            bool isBlank = memId.IsBlank();
+            var isBlank = memId.IsBlank();
 
             // Assert
             Assert.IsTrue(isBlank);
@@ -96,7 +96,7 @@ namespace AuroraFlasher.UnitTest.Models
             var memId = new MemoryId(0xEF, 0x4016);
 
             // Act
-            bool isBlank = memId.IsBlank();
+            var isBlank = memId.IsBlank();
 
             // Assert
             Assert.IsFalse(isBlank);
@@ -109,7 +109,7 @@ namespace AuroraFlasher.UnitTest.Models
             var memId = new MemoryId(0xEF, 0x4016);
 
             // Act
-            string result = memId.ToString();
+            var result = memId.ToString();
 
             // Assert
             Assert.IsTrue(result.Contains("EF"));
@@ -122,7 +122,7 @@ namespace AuroraFlasher.UnitTest.Models
         public void MemoryId_ConstructorWithInvalidJedec_ThrowsException()
         {
             // Arrange
-            byte[] invalidJedec = new byte[] { 0xEF, 0x40 }; // Only 2 bytes
+            var invalidJedec = new byte[] { 0xEF, 0x40 }; // Only 2 bytes
 
             // Act
             var memId = new MemoryId(invalidJedec);

@@ -90,16 +90,6 @@
                 <!-- Read Controls -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal">
                     <TextBlock Text="Read:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="Bold"/>
-                    <TextBlock Text="Address:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <TextBox Text="{Binding ReadAddress, UpdateSourceTrigger=PropertyChanged}" 
-                             Width="100" Height="25" Margin="0,0,15,0"
-                             VerticalContentAlignment="Center"/>
-                    
-                    <TextBlock Text="Length:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <TextBox Text="{Binding ReadLength, UpdateSourceTrigger=PropertyChanged}" 
-                             Width="80" Height="25" Margin="0,0,15,0"
-                             VerticalContentAlignment="Center"/>
-                    
                     <Button Content="Read Memory" Command="{Binding ReadMemoryCommand}" 
                             Width="120" Height="30"
                             Background="#2196F3" Foreground="White"

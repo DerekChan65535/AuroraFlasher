@@ -137,18 +137,15 @@ namespace AuroraFlasher.ViewModels
             set => SetProperty(ref _hexLines, value);
         }
 
-        private string _readAddress;
-        public string ReadAddress
+        private ChipInfo _detectedChip;
+        /// <summary>
+        /// Gets or sets the detected chip information. This is set automatically when a chip is successfully detected.
+        /// Used to determine the chip size for read operations.
+        /// </summary>
+        public ChipInfo DetectedChip
         {
-            get => _readAddress;
-            set => SetProperty(ref _readAddress, value);
-        }
-
-        private string _readLength;
-        public string ReadLength
-        {
-            get => _readLength;
-            set => SetProperty(ref _readLength, value);
+            get => _detectedChip;
+            set => SetProperty(ref _detectedChip, value);
         }
 
         public ObservableCollection<IHardware> AvailableDevices { get; }
@@ -241,8 +238,6 @@ namespace AuroraFlasher.ViewModels
             ChipInfo = "No chip detected";
             LogOutput = string.Empty;
             HexLines = new ObservableCollection<HexLineData>();
-            ReadAddress = "0x000000";
-            ReadLength = "256";
             Logger.Debug($"[MainViewModel] Properties initialized. IsConnected={IsConnected}, IsBusy={IsBusy}, ChipInfo='{ChipInfo}'");
 
             // Initialize commands with stored references for direct notification
@@ -416,6 +411,7 @@ namespace AuroraFlasher.ViewModels
                 StatusMessage = "Disconnected";
                 DeviceInfo = "No device connected";
                 ChipInfo = "No chip detected";
+                DetectedChip = null;
                 HexLines.Clear();
                 AppendLog("Disconnected successfully");
             }
@@ -447,6 +443,7 @@ namespace AuroraFlasher.ViewModels
                 {
                     // Service already selected the best chip using smart strategy
                     var chip = result.Data[0];
+                    DetectedChip = chip;
                     AppendLog($"Chip detected: {chip.Name} ({chip.SizeKB}KB)");
 
                     // Display chip info
@@ -464,15 +461,12 @@ namespace AuroraFlasher.ViewModels
                     chipInfoBuilder.AppendLine($"Device ID: 0x{chip.DeviceId:X4}");
 
                     ChipInfo = chipInfoBuilder.ToString();
-                    
-                    // Set read length to detected chip size
-                    ReadLength = chip.Size.ToString();
-                    AppendLog($"Default read size set to full chip ({chip.SizeKB}KB)");
                 }
                 else
                 {
                     StatusMessage = $"Detection failed: {result.Message}";
                     ChipInfo = "Detection failed";
+                    DetectedChip = null;
                     AppendLog($"Detection failed: {result.Message}");
                 }
             }
@@ -480,6 +474,7 @@ namespace AuroraFlasher.ViewModels
             {
                 StatusMessage = $"Error: {ex.Message}";
                 ChipInfo = "Detection error";
+                DetectedChip = null;
                 AppendLog($"Error detecting chip: {ex.Message}");
                 Logger.Error(ex, "Detection error in UI");
             }
@@ -499,24 +494,19 @@ namespace AuroraFlasher.ViewModels
 
             try
             {
-                // Parse address
-                if (!TryParseHex(ReadAddress, out var address))
+                // Validate chip is detected
+                if (_detectedChip == null)
                 {
-                    StatusMessage = "Invalid address format";
-                    AppendLog("Invalid address format. Use hex format like 0x000000");
+                    StatusMessage = "No chip detected";
+                    AppendLog("Cannot read memory: No chip detected. Please detect chip first.");
                     return;
                 }
 
-                // Parse length (support up to 64MB for large chips)
-                if (!int.TryParse(ReadLength, out var length) || length <= 0 || length > 67108864)
-                {
-                    StatusMessage = "Invalid length (must be 1-67108864 bytes / 64MB)";
-                    AppendLog("Invalid length. Must be between 1 and 67108864 bytes (64MB max)");
-                    return;
-                }
+                uint address = 0;
+                int length = _detectedChip.Size;
 
                 _cancellationTokenSource = new CancellationTokenSource();
-                AppendLog($"Reading {length} bytes from 0x{address:X6}...");
+                AppendLog($"Reading {length} bytes from 0x000000...");
 
                 // Create progress reporter
                 var progress = new Progress<ProgressInfo>(progressInfo =>
@@ -532,7 +522,7 @@ namespace AuroraFlasher.ViewModels
                 {
                     StatusMessage = $"Read {result.Data.Length} bytes successfully";
                     UpdateHexDump(result.Data, address);
-                    AppendLog($"Read {result.Data.Length} bytes from 0x{address:X6}");
+                    AppendLog($"Read {result.Data.Length} bytes from 0x000000");
                     ProgressText = $"Complete - {result.Data.Length:N0} bytes";
                 }
                 else
@@ -557,19 +547,6 @@ namespace AuroraFlasher.ViewModels
                 IsOperationInProgress = false;
                 ProgressPercentage = 0;
             }
-        }
-
-        private bool TryParseHex(string input, out uint value)
-        {
-            value = 0;
-            if (string.IsNullOrWhiteSpace(input))
-                return false;
-
-            var cleaned = input.Trim().ToLower();
-            if (cleaned.StartsWith("0x"))
-                cleaned = cleaned.Substring(2);
-
-            return uint.TryParse(cleaned, System.Globalization.NumberStyles.HexNumber, null, out value);
         }
 
         /// <summary>

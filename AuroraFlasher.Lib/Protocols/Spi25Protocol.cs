@@ -192,6 +192,13 @@ namespace AuroraFlasher.Protocols
                 var bytesRead = 0;
                 const int chunkSize = 2048; // Read in 2KB chunks (CH341 hardware limit)
 
+                // Create progress info once at the start to maintain StartTime for accurate speed calculation
+                ProgressInfo progressInfo = null;
+                if (progress != null)
+                {
+                    progressInfo = new ProgressInfo(0, length, "Reading...");
+                }
+
                 while (bytesRead < length)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -220,9 +227,9 @@ namespace AuroraFlasher.Protocols
                     bytesRead += toRead;
 
                     // Report progress
-                    if (progress != null)
+                    if (progress != null && progressInfo != null)
                     {
-                        var progressInfo = new ProgressInfo(bytesRead, length, $"Reading... {stopwatch.Elapsed.TotalSeconds:F1}s");
+                        progressInfo.Update(bytesRead, $"Reading... {stopwatch.Elapsed.TotalSeconds:F1}s");
                         progress.Report(progressInfo);
                         OnProgressChanged(progressInfo);
                     }
@@ -253,6 +260,13 @@ namespace AuroraFlasher.Protocols
                 var bytesRead = 0;
                 const int chunkSize = 2048; // 2KB chunks for CH341 hardware limit
 
+                // Create progress info once at the start to maintain StartTime for accurate speed calculation
+                ProgressInfo progressInfo = null;
+                if (progress != null)
+                {
+                    progressInfo = new ProgressInfo(0, length, "Fast reading...");
+                }
+
                 while (bytesRead < length)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -273,9 +287,9 @@ namespace AuroraFlasher.Protocols
                     Array.Copy(result.Data, 0, data, bytesRead, toRead);
                     bytesRead += toRead;
 
-                    if (progress != null)
+                    if (progress != null && progressInfo != null)
                     {
-                        var progressInfo = new ProgressInfo(bytesRead, length, $"Fast reading... {stopwatch.Elapsed.TotalSeconds:F1}s");
+                        progressInfo.Update(bytesRead, $"Fast reading... {stopwatch.Elapsed.TotalSeconds:F1}s");
                         progress.Report(progressInfo);
                         OnProgressChanged(progressInfo);
                     }

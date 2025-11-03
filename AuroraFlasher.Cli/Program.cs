@@ -17,6 +17,9 @@ namespace AuroraFlasher.Cli
             var clearMode = args.Length > 0 && args[0] == "--clear";
             var flashMode = args.Length >= 2 && args[0] == "--flash";
             var flashVerifyMode = args.Length >= 2 && args[0] == "--flash-verify";
+            var checkWpMode = args.Length > 0 && args[0] == "--check-wp";
+            var lockWpMode = args.Length > 0 && args[0] == "--lock-wp";
+            var unlockWpMode = args.Length > 0 && args[0] == "--unlock-wp";
             var filePath = flashMode || flashVerifyMode ? args[1] : null;
             
             Console.WriteLine("========================================");
@@ -34,11 +37,23 @@ namespace AuroraFlasher.Cli
             {
                 Console.WriteLine($"  Mode: Flash ROM with Verify from {filePath}");
             }
+            else if (checkWpMode)
+            {
+                Console.WriteLine("  Mode: Check Write Protection");
+            }
+            else if (lockWpMode)
+            {
+                Console.WriteLine("  Mode: Lock Write Protection");
+            }
+            else if (unlockWpMode)
+            {
+                Console.WriteLine("  Mode: Unlock Write Protection");
+            }
             Console.WriteLine("========================================");
             Console.WriteLine();
 
             Logger.Info("==========================================================");
-            Logger.Info($"AuroraFlasher Console Test Started - Mode: {(clearMode ? "Clear Flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with Verify" : "Test")}");
+            Logger.Info($"AuroraFlasher Console Test Started - Mode: {(clearMode ? "Clear Flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with Verify" : checkWpMode ? "Check Write Protection" : lockWpMode ? "Lock Write Protection" : unlockWpMode ? "Unlock Write Protection" : "Test")}");
             Logger.Info("==========================================================");
 
             try
@@ -116,9 +131,78 @@ namespace AuroraFlasher.Cli
                 Console.WriteLine($"   Block Size: {chip.BlockSize} bytes");
                 Console.WriteLine($"   Manufacturer ID: 0x{chip.ManufacturerId:X2}");
                 Console.WriteLine($"   Device ID: 0x{chip.DeviceId:X4}");
+                
+                // Display write protection status
+                var wpResult = await service.CheckWriteProtectionAsync();
+                if (wpResult.Success)
+                {
+                    Console.WriteLine($"   Write Protection: {(wpResult.Data ? "ON" : "OFF")}");
+                }
                 Console.WriteLine();
 
-                if (clearMode)
+                if (checkWpMode)
+                {
+                    // Display write protection status
+                    if (wpResult.Success)
+                    {
+                        Console.WriteLine($"[5] Write Protection Status: {(wpResult.Data ? "ON (Protected)" : "OFF (Unprotected)")}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   ERROR: {wpResult.Message}");
+                        await service.DisconnectAsync();
+                        return 1;
+                    }
+                }
+                else if (lockWpMode)
+                {
+                    // Lock flash
+                    Console.WriteLine("[5] Locking flash (enabling write protection)...");
+                    var lockResult = await service.LockFlashAsync();
+                    if (lockResult.Success)
+                    {
+                        Console.WriteLine($"   {lockResult.Message}");
+                        
+                        // Verify status
+                        var verifyResult = await service.CheckWriteProtectionAsync();
+                        if (verifyResult.Success)
+                        {
+                            Console.WriteLine($"   Verification: Write Protection is now {(verifyResult.Data ? "ON" : "OFF")}");
+                        }
+                        Console.WriteLine("[6] Lock flash completed successfully!");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   ERROR: {lockResult.Message}");
+                        await service.DisconnectAsync();
+                        return 1;
+                    }
+                }
+                else if (unlockWpMode)
+                {
+                    // Unlock flash
+                    Console.WriteLine("[5] Unlocking flash (disabling write protection)...");
+                    var unlockResult = await service.UnlockFlashAsync();
+                    if (unlockResult.Success)
+                    {
+                        Console.WriteLine($"   {unlockResult.Message}");
+                        
+                        // Verify status
+                        var verifyResult = await service.CheckWriteProtectionAsync();
+                        if (verifyResult.Success)
+                        {
+                            Console.WriteLine($"   Verification: Write Protection is now {(verifyResult.Data ? "ON" : "OFF")}");
+                        }
+                        Console.WriteLine("[6] Unlock flash completed successfully!");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   ERROR: {unlockResult.Message}");
+                        await service.DisconnectAsync();
+                        return 1;
+                    }
+                }
+                else if (clearMode)
                 {
                     // Step 5: Clear Flash (using whole ROM verification)
                     Console.WriteLine("[5] Clearing flash (with whole ROM verification)...");
@@ -225,13 +309,14 @@ namespace AuroraFlasher.Cli
                 }
 
                 // Step 7: Disconnect
-                Console.WriteLine($"[{(clearMode || flashMode || flashVerifyMode ? "7" : "8")}] Disconnecting...");
+                var stepNumber = (clearMode || flashMode || flashVerifyMode || checkWpMode || lockWpMode || unlockWpMode) ? "7" : "8";
+                Console.WriteLine($"[{stepNumber}] Disconnecting...");
                 var disconnectResult = await service.DisconnectAsync();
                 Console.WriteLine($"   {disconnectResult.Message}");
                 Console.WriteLine();
 
                 Console.WriteLine("========================================");
-                var operationName = clearMode ? "Clear flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with verify" : "Test";
+                var operationName = clearMode ? "Clear flash" : flashMode ? "Flash ROM" : flashVerifyMode ? "Flash ROM with verify" : checkWpMode ? "Check Write Protection" : lockWpMode ? "Lock Write Protection" : unlockWpMode ? "Unlock Write Protection" : "Test";
                 Console.WriteLine($"  {operationName} completed successfully!");
                 Console.WriteLine("========================================");
                 Console.WriteLine();

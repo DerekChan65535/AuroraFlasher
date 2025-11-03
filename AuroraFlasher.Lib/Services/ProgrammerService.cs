@@ -881,6 +881,67 @@ namespace AuroraFlasher.Services
 
         #endregion
 
+        #region Write Protection
+
+        public async Task<OperationResult<bool>> CheckWriteProtectionAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (_spiProtocol != null)
+                {
+                    return await _spiProtocol.IsWriteProtectedAsync(cancellationToken);
+                }
+                else
+                {
+                    return OperationResult<bool>.FailureResult("No protocol initialized");
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult<bool>.FailureResult($"Check write protection failed: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<OperationResult> LockFlashAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (_spiProtocol != null)
+                {
+                    return await _spiProtocol.LockFlashAsync(cancellationToken);
+                }
+                else
+                {
+                    return OperationResult.FailureResult("No protocol initialized");
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.FailureResult($"Lock flash failed: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<OperationResult> UnlockFlashAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (_spiProtocol != null)
+                {
+                    return await _spiProtocol.UnlockFlashAsync(cancellationToken);
+                }
+                else
+                {
+                    return OperationResult.FailureResult("No protocol initialized");
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.FailureResult($"Unlock flash failed: {ex.Message}", ex);
+            }
+        }
+
+        #endregion
+
         #region Clear Flash Operations
 
         /// <summary>

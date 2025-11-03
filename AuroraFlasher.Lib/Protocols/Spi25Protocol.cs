@@ -872,6 +872,51 @@ namespace AuroraFlasher.Protocols
             }
         }
 
+        public async Task<OperationResult> LockFlashAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Set status register to 0x9C (binary 10011100)
+                // Sets SRP bit (7) + BP bits (4,3,2) for full chip lock
+                const byte LOCK_STATUS = 0x9C; // STATUS_SRP | STATUS_BP3 | STATUS_BP2 | STATUS_BP1
+                
+                var result = await WriteStatusRegisterAsync(LOCK_STATUS, 1, cancellationToken);
+                if (result.Success)
+                {
+                    return OperationResult.SuccessResult("Flash locked (write protection enabled)");
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.FailureResult($"Lock flash failed: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<OperationResult> UnlockFlashAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var statusResult = await ReadStatusRegisterAsync(1, cancellationToken);
+                if (!statusResult.Success)
+                    return OperationResult.FailureResult("Failed to read current status");
+
+                // Clear BP bits and SRP bit, preserve other bits (like WEL)
+                var newStatus = (byte)(statusResult.Data & ~(STATUS_SRP | STATUS_BP0 | STATUS_BP1 | STATUS_BP2 | STATUS_BP3));
+                
+                var result = await WriteStatusRegisterAsync(newStatus, 1, cancellationToken);
+                if (result.Success)
+                {
+                    return OperationResult.SuccessResult("Flash unlocked (write protection disabled)");
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.FailureResult($"Unlock flash failed: {ex.Message}", ex);
+            }
+        }
+
         #endregion
 
         #region 4-Byte Addressing

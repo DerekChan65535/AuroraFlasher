@@ -47,6 +47,8 @@ namespace AuroraFlasher.ViewModels
                     OnPropertyChanged(nameof(CanRead));
                     OnPropertyChanged(nameof(CanClearFlash));
                     OnPropertyChanged(nameof(CanFlash));
+                    OnPropertyChanged(nameof(CanLockFlash));
+                    OnPropertyChanged(nameof(CanUnlockFlash));
                     OnPropertyChanged(nameof(ConnectionStatus));
                     
                     // Directly notify affected commands on UI thread (best practice)
@@ -56,6 +58,8 @@ namespace AuroraFlasher.ViewModels
                         _clearFlashCommand?.RaiseCanExecuteChanged();
                         _flashCommand?.RaiseCanExecuteChanged();
                         _flashWithVerifyCommand?.RaiseCanExecuteChanged();
+                        _lockFlashCommand?.RaiseCanExecuteChanged();
+                        _unlockFlashCommand?.RaiseCanExecuteChanged();
                         Logger.Debug($"[MainViewModel] Commands notified directly");
                     });
                 }
@@ -75,6 +79,8 @@ namespace AuroraFlasher.ViewModels
                     OnPropertyChanged(nameof(CanRead));
                     OnPropertyChanged(nameof(CanClearFlash));
                     OnPropertyChanged(nameof(CanFlash));
+                    OnPropertyChanged(nameof(CanLockFlash));
+                    OnPropertyChanged(nameof(CanUnlockFlash));
                     
                     // Directly notify affected commands on UI thread (best practice)
                     Application.Current?.Dispatcher.Invoke(() =>
@@ -83,6 +89,8 @@ namespace AuroraFlasher.ViewModels
                         _clearFlashCommand?.RaiseCanExecuteChanged();
                         _flashCommand?.RaiseCanExecuteChanged();
                         _flashWithVerifyCommand?.RaiseCanExecuteChanged();
+                        _lockFlashCommand?.RaiseCanExecuteChanged();
+                        _unlockFlashCommand?.RaiseCanExecuteChanged();
                         Logger.Debug($"[MainViewModel] Commands notified directly");
                     });
                 }
@@ -109,6 +117,8 @@ namespace AuroraFlasher.ViewModels
                     OnPropertyChanged(nameof(CanRead));
                     OnPropertyChanged(nameof(CanClearFlash));
                     OnPropertyChanged(nameof(CanFlash));
+                    OnPropertyChanged(nameof(CanLockFlash));
+                    OnPropertyChanged(nameof(CanUnlockFlash));
                     
                     // Directly notify affected commands on UI thread (best practice)
                     Application.Current?.Dispatcher.Invoke(() =>
@@ -117,6 +127,8 @@ namespace AuroraFlasher.ViewModels
                         _clearFlashCommand?.RaiseCanExecuteChanged();
                         _flashCommand?.RaiseCanExecuteChanged();
                         _flashWithVerifyCommand?.RaiseCanExecuteChanged();
+                        _lockFlashCommand?.RaiseCanExecuteChanged();
+                        _unlockFlashCommand?.RaiseCanExecuteChanged();
                         Logger.Debug($"[MainViewModel] Commands notified directly");
                     });
                 }
@@ -206,6 +218,8 @@ namespace AuroraFlasher.ViewModels
         public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
         public bool CanClearFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
         public bool CanFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
+        public bool CanLockFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
+        public bool CanUnlockFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
 
         #endregion
 
@@ -216,12 +230,16 @@ namespace AuroraFlasher.ViewModels
         public ICommand ClearFlashCommand { get; }
         public ICommand FlashCommand { get; }
         public ICommand FlashWithVerifyCommand { get; }
+        public ICommand LockFlashCommand { get; }
+        public ICommand UnlockFlashCommand { get; }
         
         // Store RelayCommand references for direct notification
         private readonly RelayCommand _readMemoryCommand;
         private readonly RelayCommand _clearFlashCommand;
         private readonly RelayCommand _flashCommand;
         private readonly RelayCommand _flashWithVerifyCommand;
+        private readonly RelayCommand _lockFlashCommand;
+        private readonly RelayCommand _unlockFlashCommand;
 
         #endregion
 
@@ -246,12 +264,16 @@ namespace AuroraFlasher.ViewModels
             _clearFlashCommand = new RelayCommand(async () => await ClearFlashAsync(), () => CanClearFlash, "ClearFlashCommand");
             _flashCommand = new RelayCommand(async () => await FlashAsync(), () => CanFlash, "FlashCommand");
             _flashWithVerifyCommand = new RelayCommand(async () => await FlashWithVerifyAsync(), () => CanFlash, "FlashWithVerifyCommand");
+            _lockFlashCommand = new RelayCommand(async () => await LockFlashAsync(), () => CanLockFlash, "LockFlashCommand");
+            _unlockFlashCommand = new RelayCommand(async () => await UnlockFlashAsync(), () => CanUnlockFlash, "UnlockFlashCommand");
             
             ReadMemoryCommand = _readMemoryCommand;
             ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty, null, "ClearLogCommand");
             ClearFlashCommand = _clearFlashCommand;
             FlashCommand = _flashCommand;
             FlashWithVerifyCommand = _flashWithVerifyCommand;
+            LockFlashCommand = _lockFlashCommand;
+            UnlockFlashCommand = _unlockFlashCommand;
             Logger.Debug("[MainViewModel] Commands initialized");
 
             // Auto-enumerate on startup (will auto-connect and auto-detect if device present)
@@ -459,6 +481,13 @@ namespace AuroraFlasher.ViewModels
                     chipInfoBuilder.AppendLine($"Voltage: {chip.Voltage / 1000.0:F1}V");
                     chipInfoBuilder.AppendLine($"Manufacturer ID: 0x{chip.ManufacturerId:X2}");
                     chipInfoBuilder.AppendLine($"Device ID: 0x{chip.DeviceId:X4}");
+
+                    // Check write protection status
+                    var wpResult = await _service.CheckWriteProtectionAsync(_cancellationTokenSource.Token);
+                    if (wpResult.Success)
+                    {
+                        chipInfoBuilder.AppendLine($"Write Protection: {(wpResult.Data ? "ON" : "OFF")}");
+                    }
 
                     ChipInfo = chipInfoBuilder.ToString();
                 }
@@ -868,6 +897,142 @@ namespace AuroraFlasher.ViewModels
                 await Task.Delay(2000);
                 IsOperationInProgress = false;
                 ProgressPercentage = 0;
+            }
+        }
+
+        private async Task LockFlashAsync()
+        {
+            // Show confirmation dialog
+            var result = MessageBox.Show(
+                "This will enable write protection on the flash chip (lock it).\n\nOnce locked, the chip cannot be written to until unlocked.\n\nContinue?",
+                "Lock Flash Confirmation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            IsBusy = true;
+            StatusMessage = "Locking flash...";
+
+            try
+            {
+                _cancellationTokenSource = new CancellationTokenSource();
+                AppendLog("Starting lock flash operation...");
+
+                var lockResult = await _service.LockFlashAsync(_cancellationTokenSource.Token);
+
+                if (lockResult.Success)
+                {
+                    StatusMessage = "Flash locked successfully";
+                    AppendLog($"Flash locked: {lockResult.Message}");
+                    
+                    // Show completion message
+                    MessageBox.Show(
+                        lockResult.Message,
+                        "Lock Flash Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    
+                    // Refresh chip info to show updated write protection status
+                    await DetectChipAsync();
+                }
+                else
+                {
+                    StatusMessage = $"Lock flash failed: {lockResult.Message}";
+                    AppendLog($"Lock flash failed: {lockResult.Message}");
+                    
+                    // Show error message
+                    MessageBox.Show(
+                        $"Lock flash failed: {lockResult.Message}",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error: {ex.Message}";
+                AppendLog($"Error during lock flash: {ex.Message}");
+                Logger.Error(ex, "Lock flash error in UI");
+                
+                MessageBox.Show(
+                    $"Lock flash error: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task UnlockFlashAsync()
+        {
+            // Show confirmation dialog
+            var result = MessageBox.Show(
+                "This will disable write protection on the flash chip (unlock it).\n\nOnce unlocked, the chip can be written to.\n\nContinue?",
+                "Unlock Flash Confirmation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            IsBusy = true;
+            StatusMessage = "Unlocking flash...";
+
+            try
+            {
+                _cancellationTokenSource = new CancellationTokenSource();
+                AppendLog("Starting unlock flash operation...");
+
+                var unlockResult = await _service.UnlockFlashAsync(_cancellationTokenSource.Token);
+
+                if (unlockResult.Success)
+                {
+                    StatusMessage = "Flash unlocked successfully";
+                    AppendLog($"Flash unlocked: {unlockResult.Message}");
+                    
+                    // Show completion message
+                    MessageBox.Show(
+                        unlockResult.Message,
+                        "Unlock Flash Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    
+                    // Refresh chip info to show updated write protection status
+                    await DetectChipAsync();
+                }
+                else
+                {
+                    StatusMessage = $"Unlock flash failed: {unlockResult.Message}";
+                    AppendLog($"Unlock flash failed: {unlockResult.Message}");
+                    
+                    // Show error message
+                    MessageBox.Show(
+                        $"Unlock flash failed: {unlockResult.Message}",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error: {ex.Message}";
+                AppendLog($"Error during unlock flash: {ex.Message}");
+                Logger.Error(ex, "Unlock flash error in UI");
+                
+                MessageBox.Show(
+                    $"Unlock flash error: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 

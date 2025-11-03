@@ -154,6 +154,16 @@ namespace AuroraFlasher.Interfaces
         /// </summary>
         Task<OperationResult> ClearBlockProtectionAsync(CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Lock flash (enable write protection using 0x9C value)
+        /// </summary>
+        Task<OperationResult> LockFlashAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Unlock flash (disable write protection)
+        /// </summary>
+        Task<OperationResult> UnlockFlashAsync(CancellationToken cancellationToken = default);
+
         // 4-Byte Addressing
         
         /// <summary>

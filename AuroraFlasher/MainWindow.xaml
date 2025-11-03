@@ -18,6 +18,7 @@
         
         <!-- Enhanced button style with distinct visual states -->
         <Style x:Key="StaticColorButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -129,24 +130,14 @@
                             ToolTip="Write binary file with immediate page-by-page verification"
                             Style="{StaticResource StaticColorButtonStyle}"/>
                     
-                    <Button Content="Lock Flash" 
-                            Command="{Binding LockFlashCommand}" 
+                    <Button Content="{Binding ToggleWriteProtectionCommandText}" 
+                            Command="{Binding ToggleWriteProtectionCommand}" 
                             Width="120" Height="30"
                             Background="#E91E63" 
                             Foreground="White"
                             FontWeight="Bold"
                             Margin="15,0,0,0"
-                            ToolTip="Enable write protection on the flash chip"
-                            Style="{StaticResource StaticColorButtonStyle}"/>
-                    
-                    <Button Content="Unlock Flash" 
-                            Command="{Binding UnlockFlashCommand}" 
-                            Width="120" Height="30"
-                            Background="#4CAF50" 
-                            Foreground="White"
-                            FontWeight="Bold"
-                            Margin="15,0,0,0"
-                            ToolTip="Disable write protection on the flash chip"
+                            ToolTip="{Binding ToggleWriteProtectionToolTip}"
                             Style="{StaticResource StaticColorButtonStyle}"/>
                 </StackPanel>
             </Grid>

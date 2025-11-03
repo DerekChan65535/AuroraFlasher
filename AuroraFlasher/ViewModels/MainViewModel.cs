@@ -47,8 +47,7 @@ namespace AuroraFlasher.ViewModels
                     OnPropertyChanged(nameof(CanRead));
                     OnPropertyChanged(nameof(CanClearFlash));
                     OnPropertyChanged(nameof(CanFlash));
-                    OnPropertyChanged(nameof(CanLockFlash));
-                    OnPropertyChanged(nameof(CanUnlockFlash));
+                    OnPropertyChanged(nameof(CanToggleWriteProtection));
                     OnPropertyChanged(nameof(ConnectionStatus));
                     
                     // Directly notify affected commands on UI thread (best practice)
@@ -58,8 +57,7 @@ namespace AuroraFlasher.ViewModels
                         _clearFlashCommand?.RaiseCanExecuteChanged();
                         _flashCommand?.RaiseCanExecuteChanged();
                         _flashWithVerifyCommand?.RaiseCanExecuteChanged();
-                        _lockFlashCommand?.RaiseCanExecuteChanged();
-                        _unlockFlashCommand?.RaiseCanExecuteChanged();
+                        _toggleWriteProtectionCommand?.RaiseCanExecuteChanged();
                         Logger.Debug($"[MainViewModel] Commands notified directly");
                     });
                 }
@@ -79,8 +77,7 @@ namespace AuroraFlasher.ViewModels
                     OnPropertyChanged(nameof(CanRead));
                     OnPropertyChanged(nameof(CanClearFlash));
                     OnPropertyChanged(nameof(CanFlash));
-                    OnPropertyChanged(nameof(CanLockFlash));
-                    OnPropertyChanged(nameof(CanUnlockFlash));
+                    OnPropertyChanged(nameof(CanToggleWriteProtection));
                     
                     // Directly notify affected commands on UI thread (best practice)
                     Application.Current?.Dispatcher.Invoke(() =>
@@ -89,8 +86,7 @@ namespace AuroraFlasher.ViewModels
                         _clearFlashCommand?.RaiseCanExecuteChanged();
                         _flashCommand?.RaiseCanExecuteChanged();
                         _flashWithVerifyCommand?.RaiseCanExecuteChanged();
-                        _lockFlashCommand?.RaiseCanExecuteChanged();
-                        _unlockFlashCommand?.RaiseCanExecuteChanged();
+                        _toggleWriteProtectionCommand?.RaiseCanExecuteChanged();
                         Logger.Debug($"[MainViewModel] Commands notified directly");
                     });
                 }
@@ -117,8 +113,7 @@ namespace AuroraFlasher.ViewModels
                     OnPropertyChanged(nameof(CanRead));
                     OnPropertyChanged(nameof(CanClearFlash));
                     OnPropertyChanged(nameof(CanFlash));
-                    OnPropertyChanged(nameof(CanLockFlash));
-                    OnPropertyChanged(nameof(CanUnlockFlash));
+                    OnPropertyChanged(nameof(CanToggleWriteProtection));
                     
                     // Directly notify affected commands on UI thread (best practice)
                     Application.Current?.Dispatcher.Invoke(() =>
@@ -127,8 +122,7 @@ namespace AuroraFlasher.ViewModels
                         _clearFlashCommand?.RaiseCanExecuteChanged();
                         _flashCommand?.RaiseCanExecuteChanged();
                         _flashWithVerifyCommand?.RaiseCanExecuteChanged();
-                        _lockFlashCommand?.RaiseCanExecuteChanged();
-                        _unlockFlashCommand?.RaiseCanExecuteChanged();
+                        _toggleWriteProtectionCommand?.RaiseCanExecuteChanged();
                         Logger.Debug($"[MainViewModel] Commands notified directly");
                     });
                 }
@@ -159,6 +153,41 @@ namespace AuroraFlasher.ViewModels
             get => _detectedChip;
             set => SetProperty(ref _detectedChip, value);
         }
+
+        private bool _isWriteProtected;
+        /// <summary>
+        /// Gets or sets whether the flash chip is write protected
+        /// </summary>
+        public bool IsWriteProtected
+        {
+            get => _isWriteProtected;
+            set
+            {
+                if (SetProperty(ref _isWriteProtected, value))
+                {
+                    OnPropertyChanged(nameof(ToggleWriteProtectionCommandText));
+                    OnPropertyChanged(nameof(ToggleWriteProtectionToolTip));
+                    
+                    // Directly notify command on UI thread (best practice)
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        _toggleWriteProtectionCommand?.RaiseCanExecuteChanged();
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the text for the toggle write protection button based on current state
+        /// </summary>
+        public string ToggleWriteProtectionCommandText => IsWriteProtected ? "Unlock Flash" : "Lock Flash";
+
+        /// <summary>
+        /// Gets the tooltip for the toggle write protection button based on current state
+        /// </summary>
+        public string ToggleWriteProtectionToolTip => IsWriteProtected 
+            ? "Disable write protection on the flash chip" 
+            : "Enable write protection on the flash chip";
 
         public ObservableCollection<IHardware> AvailableDevices { get; }
 
@@ -218,8 +247,7 @@ namespace AuroraFlasher.ViewModels
         public bool CanRead => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
         public bool CanClearFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
         public bool CanFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
-        public bool CanLockFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
-        public bool CanUnlockFlash => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
+        public bool CanToggleWriteProtection => IsConnected && !IsBusy && !string.IsNullOrEmpty(ChipInfo) && !ChipInfo.Contains("No chip detected");
 
         #endregion
 
@@ -230,16 +258,14 @@ namespace AuroraFlasher.ViewModels
         public ICommand ClearFlashCommand { get; }
         public ICommand FlashCommand { get; }
         public ICommand FlashWithVerifyCommand { get; }
-        public ICommand LockFlashCommand { get; }
-        public ICommand UnlockFlashCommand { get; }
+        public ICommand ToggleWriteProtectionCommand { get; }
         
         // Store RelayCommand references for direct notification
         private readonly RelayCommand _readMemoryCommand;
         private readonly RelayCommand _clearFlashCommand;
         private readonly RelayCommand _flashCommand;
         private readonly RelayCommand _flashWithVerifyCommand;
-        private readonly RelayCommand _lockFlashCommand;
-        private readonly RelayCommand _unlockFlashCommand;
+        private readonly RelayCommand _toggleWriteProtectionCommand;
 
         #endregion
 
@@ -264,16 +290,14 @@ namespace AuroraFlasher.ViewModels
             _clearFlashCommand = new RelayCommand(async () => await ClearFlashAsync(), () => CanClearFlash, "ClearFlashCommand");
             _flashCommand = new RelayCommand(async () => await FlashAsync(), () => CanFlash, "FlashCommand");
             _flashWithVerifyCommand = new RelayCommand(async () => await FlashWithVerifyAsync(), () => CanFlash, "FlashWithVerifyCommand");
-            _lockFlashCommand = new RelayCommand(async () => await LockFlashAsync(), () => CanLockFlash, "LockFlashCommand");
-            _unlockFlashCommand = new RelayCommand(async () => await UnlockFlashAsync(), () => CanUnlockFlash, "UnlockFlashCommand");
+            _toggleWriteProtectionCommand = new RelayCommand(async () => await ToggleWriteProtectionAsync(), () => CanToggleWriteProtection, "ToggleWriteProtectionCommand");
             
             ReadMemoryCommand = _readMemoryCommand;
             ClearLogCommand = new RelayCommand(() => LogOutput = string.Empty, null, "ClearLogCommand");
             ClearFlashCommand = _clearFlashCommand;
             FlashCommand = _flashCommand;
             FlashWithVerifyCommand = _flashWithVerifyCommand;
-            LockFlashCommand = _lockFlashCommand;
-            UnlockFlashCommand = _unlockFlashCommand;
+            ToggleWriteProtectionCommand = _toggleWriteProtectionCommand;
             Logger.Debug("[MainViewModel] Commands initialized");
 
             // Auto-enumerate on startup (will auto-connect and auto-detect if device present)
@@ -486,6 +510,7 @@ namespace AuroraFlasher.ViewModels
                     var wpResult = await _service.CheckWriteProtectionAsync(_cancellationTokenSource.Token);
                     if (wpResult.Success)
                     {
+                        IsWriteProtected = wpResult.Data;
                         chipInfoBuilder.AppendLine($"Write Protection: {(wpResult.Data ? "ON" : "OFF")}");
                     }
 
@@ -900,37 +925,50 @@ namespace AuroraFlasher.ViewModels
             }
         }
 
-        private async Task LockFlashAsync()
+        private async Task ToggleWriteProtectionAsync()
         {
+            var isCurrentlyLocked = IsWriteProtected;
+            var action = isCurrentlyLocked ? "unlock" : "lock";
+            
             // Show confirmation dialog
             var result = MessageBox.Show(
-                "This will enable write protection on the flash chip (lock it).\n\nOnce locked, the chip cannot be written to until unlocked.\n\nContinue?",
-                "Lock Flash Confirmation",
+                isCurrentlyLocked
+                    ? "This will disable write protection on the flash chip (unlock it).\n\nOnce unlocked, the chip can be written to.\n\nContinue?"
+                    : "This will enable write protection on the flash chip (lock it).\n\nOnce locked, the chip cannot be written to until unlocked.\n\nContinue?",
+                $"{char.ToUpper(action[0])}{action.Substring(1)} Flash Confirmation",
                 MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+                isCurrentlyLocked ? MessageBoxImage.Question : MessageBoxImage.Warning);
             
             if (result != MessageBoxResult.Yes)
                 return;
 
             IsBusy = true;
-            StatusMessage = "Locking flash...";
+            StatusMessage = isCurrentlyLocked ? "Unlocking flash..." : "Locking flash...";
 
             try
             {
                 _cancellationTokenSource = new CancellationTokenSource();
-                AppendLog("Starting lock flash operation...");
+                AppendLog($"Starting {action} flash operation...");
 
-                var lockResult = await _service.LockFlashAsync(_cancellationTokenSource.Token);
-
-                if (lockResult.Success)
+                OperationResult toggleResult;
+                if (isCurrentlyLocked)
                 {
-                    StatusMessage = "Flash locked successfully";
-                    AppendLog($"Flash locked: {lockResult.Message}");
+                    toggleResult = await _service.UnlockFlashAsync(_cancellationTokenSource.Token);
+                }
+                else
+                {
+                    toggleResult = await _service.LockFlashAsync(_cancellationTokenSource.Token);
+                }
+
+                if (toggleResult.Success)
+                {
+                    StatusMessage = $"Flash {action}ed successfully";
+                    AppendLog($"Flash {action}ed: {toggleResult.Message}");
                     
                     // Show completion message
                     MessageBox.Show(
-                        lockResult.Message,
-                        "Lock Flash Complete",
+                        toggleResult.Message,
+                        $"{char.ToUpper(action[0])}{action.Substring(1)} Flash Complete",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
                     
@@ -939,12 +977,12 @@ namespace AuroraFlasher.ViewModels
                 }
                 else
                 {
-                    StatusMessage = $"Lock flash failed: {lockResult.Message}";
-                    AppendLog($"Lock flash failed: {lockResult.Message}");
+                    StatusMessage = $"Flash {action} failed: {toggleResult.Message}";
+                    AppendLog($"Flash {action} failed: {toggleResult.Message}");
                     
                     // Show error message
                     MessageBox.Show(
-                        $"Lock flash failed: {lockResult.Message}",
+                        $"Flash {action} failed: {toggleResult.Message}",
                         "Error",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
@@ -953,79 +991,11 @@ namespace AuroraFlasher.ViewModels
             catch (Exception ex)
             {
                 StatusMessage = $"Error: {ex.Message}";
-                AppendLog($"Error during lock flash: {ex.Message}");
-                Logger.Error(ex, "Lock flash error in UI");
+                AppendLog($"Error during flash {action}: {ex.Message}");
+                Logger.Error(ex, $"Flash {action} error in UI");
                 
                 MessageBox.Show(
-                    $"Lock flash error: {ex.Message}",
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-            finally
-            {
-                IsBusy = false;
-            }
-        }
-
-        private async Task UnlockFlashAsync()
-        {
-            // Show confirmation dialog
-            var result = MessageBox.Show(
-                "This will disable write protection on the flash chip (unlock it).\n\nOnce unlocked, the chip can be written to.\n\nContinue?",
-                "Unlock Flash Confirmation",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-            
-            if (result != MessageBoxResult.Yes)
-                return;
-
-            IsBusy = true;
-            StatusMessage = "Unlocking flash...";
-
-            try
-            {
-                _cancellationTokenSource = new CancellationTokenSource();
-                AppendLog("Starting unlock flash operation...");
-
-                var unlockResult = await _service.UnlockFlashAsync(_cancellationTokenSource.Token);
-
-                if (unlockResult.Success)
-                {
-                    StatusMessage = "Flash unlocked successfully";
-                    AppendLog($"Flash unlocked: {unlockResult.Message}");
-                    
-                    // Show completion message
-                    MessageBox.Show(
-                        unlockResult.Message,
-                        "Unlock Flash Complete",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                    
-                    // Refresh chip info to show updated write protection status
-                    await DetectChipAsync();
-                }
-                else
-                {
-                    StatusMessage = $"Unlock flash failed: {unlockResult.Message}";
-                    AppendLog($"Unlock flash failed: {unlockResult.Message}");
-                    
-                    // Show error message
-                    MessageBox.Show(
-                        $"Unlock flash failed: {unlockResult.Message}",
-                        "Error",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Error: {ex.Message}";
-                AppendLog($"Error during unlock flash: {ex.Message}");
-                Logger.Error(ex, "Unlock flash error in UI");
-                
-                MessageBox.Show(
-                    $"Unlock flash error: {ex.Message}",
+                    $"Flash {action} error: {ex.Message}",
                     "Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);

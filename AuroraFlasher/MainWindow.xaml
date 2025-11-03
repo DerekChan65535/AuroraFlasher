@@ -90,10 +90,14 @@
                 <!-- Read Controls -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal">
                     <TextBlock Text="Read:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="Bold"/>
-                    <Button Content="Read Memory" Command="{Binding ReadMemoryCommand}" 
+                    <Button Content="Read Memory" 
+                            Command="{Binding ReadMemoryCommand}" 
                             Width="120" Height="30"
-                            Background="#2196F3" Foreground="White"
-                            FontWeight="Bold"/>
+                            Background="#2196F3" 
+                            Foreground="White"
+                            FontWeight="Bold"
+                            ToolTip="Read memory from chip starting at address 0x000000"
+                            Style="{StaticResource StaticColorButtonStyle}"/>
                     
                     <Button Content="Clear Flash" 
                             Command="{Binding ClearFlashCommand}" 

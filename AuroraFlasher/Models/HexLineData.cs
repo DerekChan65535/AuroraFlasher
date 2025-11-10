@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace AuroraFlasher.Models
 {
     /// <summary>
@@ -7,13 +9,19 @@ namespace AuroraFlasher.Models
     public class HexLineData
     {
         /// <summary>
-        /// The formatted hex dump line (address + hex bytes + ASCII)
+        /// The address for this line (e.g., "0000:")
         /// </summary>
-        public string FormattedLine { get; set; }
+        public string Address { get; set; }
 
-        public HexLineData(string formattedLine)
+        /// <summary>
+        /// The hex byte values for this line (up to 16 bytes)
+        /// </summary>
+        public List<string> ByteValues { get; set; }
+
+        public HexLineData(string address, List<string> byteValues)
         {
-            FormattedLine = formattedLine;
+            Address = address;
+            ByteValues = byteValues;
         }
     }
 }

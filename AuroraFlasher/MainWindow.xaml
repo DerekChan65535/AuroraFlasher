@@ -198,12 +198,15 @@
                                   ScrollViewer.CanContentScroll="True"
                                   VirtualizingPanel.ScrollUnit="Pixel"
                                   VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.CacheLength="20,20"
+                                  VirtualizingPanel.CacheLengthUnit="Item"
                                   BorderThickness="0"
                                   Background="White"
                                   Padding="5">
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
-                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Padding" Value="0,1,0,1"/>
                                     <Setter Property="Margin" Value="0"/>
                                     <Setter Property="BorderThickness" Value="0"/>
                                     <Setter Property="Template">
@@ -217,9 +220,49 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding FormattedLine}" 
-                                               FontFamily="Consolas"
-                                               FontSize="12"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="60"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <!-- Address Column -->
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Address}" 
+                                                   FontFamily="Consolas"
+                                                   FontSize="16"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,10,0"/>
+                                        
+                                        <!-- Hex Bytes as Bordered Cells -->
+                                        <ItemsControl Grid.Column="1" 
+                                                      ItemsSource="{Binding ByteValues}"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <VirtualizingStackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="#CCCCCC" 
+                                                            BorderThickness="1" 
+                                                            Margin="2"
+                                                            Width="32"
+                                                            Height="32"
+                                                            SnapsToDevicePixels="True">
+                                                        <TextBlock Text="{Binding}" 
+                                                                   FontFamily="Consolas"
+                                                                   FontSize="16"
+                                                                   TextAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Center"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>

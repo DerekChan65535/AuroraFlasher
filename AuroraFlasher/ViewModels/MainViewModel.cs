@@ -609,52 +609,43 @@ namespace AuroraFlasher.ViewModels
         /// </summary>
         private void UpdateHexDump(byte[] data, uint startAddress)
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            const int bytesPerLine = 16;
+            
+            // Pre-calculate line count to avoid dynamic resizing
+            var lineCount = (data.Length + bytesPerLine - 1) / bytesPerLine;
+            var lines = new System.Collections.Generic.List<HexLineData>(lineCount);
+
+            // Process data off UI thread to avoid freezing
+            Task.Run(() =>
             {
-                HexLines.Clear();
-
-                var bytesPerLine = 16;
-                var lines = new System.Collections.Generic.List<HexLineData>();
-
                 for (var i = 0; i < data.Length; i += bytesPerLine)
                 {
-                    var sb = new StringBuilder();
-
                     // Address
-                    sb.AppendFormat("{0:X4}:  ", startAddress + i);
+                    var address = $"{startAddress + i:X4}:";
 
-                    // Hex bytes
+                    // Hex bytes - create list of hex strings
                     var lineLength = Math.Min(bytesPerLine, data.Length - i);
+                    var byteValues = new System.Collections.Generic.List<string>(lineLength);
+                    
                     for (var j = 0; j < lineLength; j++)
                     {
-                        sb.AppendFormat("{0:X2} ", data[i + j]);
-                        if (j == 7) sb.Append(" "); // Extra space in middle
+                        byteValues.Add($"{data[i + j]:X2}");
                     }
 
-                    // Padding if incomplete line
-                    if (lineLength < bytesPerLine)
-                    {
-                        var padding = (bytesPerLine - lineLength) * 3;
-                        if (lineLength <= 7) padding++; // Account for middle space
-                        sb.Append(new string(' ', padding));
-                    }
-
-                    // ASCII representation
-                    sb.Append("  ");
-                    for (var j = 0; j < lineLength; j++)
-                    {
-                        var b = data[i + j];
-                        sb.Append(b >= 32 && b <= 126 ? (char)b : '.');
-                    }
-
-                    lines.Add(new HexLineData(sb.ToString()));
+                    lines.Add(new HexLineData(address, byteValues));
                 }
 
-                // Batch add all lines to collection (more efficient than adding one by one)
-                foreach (var line in lines)
+                // Update UI on dispatcher thread
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    HexLines.Add(line);
-                }
+                    HexLines.Clear();
+                    
+                    // Batch add all lines to collection (more efficient than adding one by one)
+                    foreach (var line in lines)
+                    {
+                        HexLines.Add(line);
+                    }
+                });
             });
         }
 

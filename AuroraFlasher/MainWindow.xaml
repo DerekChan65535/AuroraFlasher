@@ -252,7 +252,7 @@
                                                             Width="32"
                                                             Height="32"
                                                             SnapsToDevicePixels="True">
-                                                        <TextBlock Text="{Binding}" 
+                                                        <TextBlock Text="{Binding Value}" 
                                                                    FontFamily="Consolas"
                                                                    FontSize="16"
                                                                    TextAlignment="Center"

@@ -31,6 +31,12 @@ namespace AuroraFlasher.Services
         public IMicrowireProtocol MicrowireProtocol => _microwireProtocol;
 
         public event EventHandler<ProgressInfo> ProgressChanged;
+        
+        /// <summary>
+        /// Event fired when memory data is read from the chip.
+        /// This allows UI components to update displays without blocking operations.
+        /// </summary>
+        public event EventHandler<(byte[] data, uint address)> DataRead;
 
         /// <summary>
         /// Loads chip database from chiplist.xml. Called automatically on first use.
@@ -767,10 +773,55 @@ namespace AuroraFlasher.Services
                 
                 if (_spiProtocol != null)
                 {
-                    var progressHandler = CreateProgressHandler(progress);
-                    var result = await _spiProtocol.ReadAsync(address, length, progressHandler, cancellationToken);
-                    Logger.Debug($"ReadMemoryAsync: SPI read completed, success={result.Success}");
-                    return result;
+                    // Read in chunks to fire incremental DataRead events for UI updates
+                    const int chunkSize = 4096; // 4KB chunks for incremental UI updates
+                    var allData = new byte[length];
+                    var bytesRead = 0;
+                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                    
+                    // Create progress info once at the start to maintain StartTime for accurate speed calculation
+                    ProgressInfo progressInfo = null;
+                    if (progress != null)
+                    {
+                        progressInfo = new ProgressInfo(0, length, "Reading...");
+                    }
+
+                    while (bytesRead < length)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var remaining = length - bytesRead;
+                        var toRead = Math.Min(remaining, chunkSize);
+                        var currentAddress = address + (uint)bytesRead;
+
+                        // Read chunk without progress (we'll report overall progress manually)
+                        var chunkResult = await _spiProtocol.ReadAsync(currentAddress, toRead, null, cancellationToken);
+                        
+                        if (!chunkResult.Success)
+                        {
+                            Logger.Error($"Chunk read failed at address 0x{currentAddress:X6}: {chunkResult.Message}");
+                            return OperationResult<byte[]>.FailureResult($"Read failed at address 0x{currentAddress:X6}: {chunkResult.Message}");
+                        }
+
+                        // Copy chunk to result array
+                        Array.Copy(chunkResult.Data, 0, allData, bytesRead, toRead);
+                        bytesRead += toRead;
+
+                        // Fire DataRead event for this chunk (for incremental UI updates)
+                        DataRead?.Invoke(this, (chunkResult.Data, currentAddress));
+                        
+                        // Report overall progress
+                        if (progress != null && progressInfo != null)
+                        {
+                            progressInfo.Update(bytesRead, $"Reading... {stopwatch.Elapsed.TotalSeconds:F1}s");
+                            progress.Report(progressInfo);
+                            OnProgressChanged(progressInfo);
+                        }
+                    }
+
+                    stopwatch.Stop();
+                    Logger.Debug($"ReadMemoryAsync: SPI read completed, success=true");
+                    return OperationResult<byte[]>.SuccessResult(allData, $"Read {length} bytes from 0x{address:X6}");
                 }
                 else if (_i2cProtocol != null)
                 {

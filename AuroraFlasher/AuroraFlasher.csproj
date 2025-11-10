@@ -80,6 +80,7 @@
         <!-- Commands -->
         <Compile Include="Commands\RelayCommand.cs" />
         <!-- Models -->
+        <Compile Include="Models\HexByteCell.cs" />
         <Compile Include="Models\HexLineData.cs" />
         <!-- Utilities -->
         <Compile Include="Utilities\UsbDeviceNotificationListener.cs" />

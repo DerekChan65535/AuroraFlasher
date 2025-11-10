@@ -21,6 +21,12 @@ namespace AuroraFlasher.ViewModels
     {
         private readonly ProgrammerService _service;
         private CancellationTokenSource _cancellationTokenSource;
+        private byte[] _chipMemoryBuffer;
+        private bool[] _chipMemoryValid; // Track which bytes have been read
+        private readonly object _memoryBufferLock = new object();
+        private System.Threading.Timer _viewRefreshTimer;
+        private bool _isReadingMemory;
+        private int _lastRefreshedAddress = -1;
 
         // Known VID for WCH (CH341 manufacturer)
         private const string CH341_VENDOR_ID = "1A86";
@@ -275,6 +281,12 @@ namespace AuroraFlasher.ViewModels
             _service = new ProgrammerService();
             AvailableDevices = new ObservableCollection<IHardware>();
 
+            // Subscribe to data read events to update memory buffer
+            _service.DataRead += OnDataRead;
+            
+            // Initialize view refresh timer (refreshes visible cells during read operations)
+            _viewRefreshTimer = new System.Threading.Timer(RefreshHexView, null, Timeout.Infinite, Timeout.Infinite);
+
             // Initialize properties
             Logger.Debug("[MainViewModel] Initializing properties...");
             StatusMessage = "Ready";
@@ -515,6 +527,9 @@ namespace AuroraFlasher.ViewModels
                     }
 
                     ChipInfo = chipInfoBuilder.ToString();
+                    
+                    // Initialize hex dump grid with empty cells based on chip size
+                    InitializeEmptyHexDump(_detectedChip.Size);
                 }
                 else
                 {
@@ -535,7 +550,7 @@ namespace AuroraFlasher.ViewModels
             finally
             {
                 IsBusy = false;
-            }
+}
         }
 
         private async Task ReadMemoryAsync()
@@ -575,7 +590,7 @@ namespace AuroraFlasher.ViewModels
                 if (result.Success && result.Data != null)
                 {
                     StatusMessage = $"Read {result.Data.Length} bytes successfully";
-                    UpdateHexDump(result.Data, address);
+                    // Hex dump update is handled by DataRead event - async and non-blocking
                     AppendLog($"Read {result.Data.Length} bytes from 0x000000");
                     ProgressText = $"Complete - {result.Data.Length:N0} bytes";
                 }
@@ -595,6 +610,13 @@ namespace AuroraFlasher.ViewModels
             }
             finally
             {
+                // Stop view refresh timer
+                _isReadingMemory = false;
+                _viewRefreshTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                
+                // Final refresh to show complete data
+                RefreshHexView(null);
+                
                 IsBusy = false;
                 // Keep progress bar visible for 2 seconds so user can see final status
                 await Task.Delay(2000);
@@ -604,49 +626,112 @@ namespace AuroraFlasher.ViewModels
         }
 
         /// <summary>
-        /// Update hex dump display with virtualized line-by-line rendering.
-        /// This method populates HexLines collection for ListView virtualization.
+        /// Initialize hex dump grid with memory buffer based on chip size.
+        /// Called when chip is detected.
         /// </summary>
-        private void UpdateHexDump(byte[] data, uint startAddress)
+        private void InitializeEmptyHexDump(int chipSize)
         {
             const int bytesPerLine = 16;
-            
-            // Pre-calculate line count to avoid dynamic resizing
-            var lineCount = (data.Length + bytesPerLine - 1) / bytesPerLine;
-            var lines = new System.Collections.Generic.List<HexLineData>(lineCount);
+            var lineCount = (chipSize + bytesPerLine - 1) / bytesPerLine;
 
-            // Process data off UI thread to avoid freezing
-            Task.Run(() =>
+            // Initialize memory buffer and validity tracking
+            lock (_memoryBufferLock)
             {
-                for (var i = 0; i < data.Length; i += bytesPerLine)
+                _chipMemoryBuffer = new byte[chipSize];
+                _chipMemoryValid = new bool[chipSize];
+                _lastRefreshedAddress = -1;
+                
+                // Initialize buffer to 0x00 (doesn't matter since valid flags are all false)
+                Array.Clear(_chipMemoryBuffer, 0, chipSize);
+                Array.Clear(_chipMemoryValid, 0, chipSize);
+            }
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                HexLines.Clear();
+
+                // Create view objects that read from buffer
+                for (var i = 0; i < chipSize; i += bytesPerLine)
                 {
-                    // Address
-                    var address = $"{startAddress + i:X4}:";
-
-                    // Hex bytes - create list of hex strings
-                    var lineLength = Math.Min(bytesPerLine, data.Length - i);
-                    var byteValues = new System.Collections.Generic.List<string>(lineLength);
-                    
-                    for (var j = 0; j < lineLength; j++)
-                    {
-                        byteValues.Add($"{data[i + j]:X2}");
-                    }
-
-                    lines.Add(new HexLineData(address, byteValues));
+                    var lineLength = Math.Min(bytesPerLine, chipSize - i);
+                    HexLines.Add(new HexLineData(_chipMemoryBuffer, _chipMemoryValid, i, lineLength, _memoryBufferLock));
                 }
 
-                // Update UI on dispatcher thread
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    HexLines.Clear();
-                    
-                    // Batch add all lines to collection (more efficient than adding one by one)
-                    foreach (var line in lines)
-                    {
-                        HexLines.Add(line);
-                    }
-                });
+                AppendLog($"Hex dump grid initialized: {lineCount} lines for {chipSize:N0} bytes");
             });
+        }
+
+        /// <summary>
+        /// Event handler for DataRead event from ProgrammerService.
+        /// Updates memory buffer directly - no UI updates triggered here.
+        /// </summary>
+        private void OnDataRead(object sender, (byte[] data, uint address) e)
+        {
+            if (_chipMemoryBuffer == null || _chipMemoryValid == null)
+                return;
+
+            // Update memory buffer and validity flags (fast, no UI work)
+            lock (_memoryBufferLock)
+            {
+                Array.Copy(e.data, 0, _chipMemoryBuffer, (int)e.address, e.data.Length);
+                
+                // Mark bytes as valid
+                for (var i = 0; i < e.data.Length; i++)
+                {
+                    _chipMemoryValid[(int)e.address + i] = true;
+                }
+                
+                // Track last updated address for smart refresh
+                _lastRefreshedAddress = (int)e.address + e.data.Length - 1;
+            }
+            
+            // Start periodic view refresh if not already running
+            if (!_isReadingMemory)
+            {
+                _isReadingMemory = true;
+                _viewRefreshTimer?.Change(200, 200); // Refresh every 200ms
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the hex view by notifying cells to re-read from buffer.
+        /// Only refreshes recently updated lines for efficiency.
+        /// </summary>
+        private void RefreshHexView(object state)
+        {
+            int lastAddress;
+            lock (_memoryBufferLock)
+            {
+                lastAddress = _lastRefreshedAddress;
+            }
+
+            if (lastAddress < 0)
+                return;
+
+            Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                if (HexLines == null || HexLines.Count == 0)
+                    return;
+
+                const int bytesPerLine = 16;
+                
+                // Calculate range of lines that need refresh (with some buffer)
+                var startLine = Math.Max(0, (lastAddress - 16384) / bytesPerLine); // Last 16KB
+                var endLine = Math.Min(HexLines.Count - 1, (lastAddress + bytesPerLine) / bytesPerLine);
+
+                // Refresh cells in the updated range
+                for (var lineIdx = startLine; lineIdx <= endLine; lineIdx++)
+                {
+                    if (lineIdx >= 0 && lineIdx < HexLines.Count)
+                    {
+                        var line = HexLines[lineIdx];
+                        foreach (var cell in line.ByteValues)
+                        {
+                            cell.Refresh();
+                        }
+                    }
+                }
+            }, System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private void AppendLog(string message)
@@ -1117,3 +1202,4 @@ namespace AuroraFlasher.ViewModels
         #endregion
     }
 }
+

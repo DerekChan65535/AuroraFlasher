@@ -759,7 +759,7 @@ namespace AuroraFlasher.Services
 
         #region Read/Write Operations
 
-        public async Task<OperationResult<byte[]>> ReadMemoryAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        public async Task<OperationResult<byte[]>> ReadMemoryAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -768,7 +768,7 @@ namespace AuroraFlasher.Services
                 if (_spiProtocol != null)
                 {
                     var progressHandler = CreateProgressHandler(progress);
-                    var result = await _spiProtocol.ReadAsync(address, length, progressHandler, cancellationToken);
+                    var result = await _spiProtocol.ReadAsync(address, length, progressHandler, retryCount, cancellationToken);
                     Logger.Debug($"ReadMemoryAsync: SPI read completed, success={result.Success}");
                     return result;
                 }
@@ -791,14 +791,14 @@ namespace AuroraFlasher.Services
             }
         }
 
-        public async Task<OperationResult> WriteMemoryAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        public async Task<OperationResult> WriteMemoryAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default)
         {
             try
             {
                 if (_spiProtocol != null)
                 {
                     var progressHandler = CreateProgressHandler(progress);
-                    return await _spiProtocol.WriteAsync(address, data, progressHandler, cancellationToken);
+                    return await _spiProtocol.WriteAsync(address, data, progressHandler, retryCount, cancellationToken);
                 }
                 else if (_i2cProtocol != null)
                 {
@@ -846,7 +846,7 @@ namespace AuroraFlasher.Services
                 if (_spiProtocol != null)
                 {
                     var progressHandler = CreateProgressHandler(progress);
-                    return await _spiProtocol.VerifyAsync(address, data, progressHandler, cancellationToken);
+                    return await _spiProtocol.VerifyAsync(address, data, progressHandler, retryCount: 0, cancellationToken: cancellationToken);
                 }
                 else
                 {
@@ -866,7 +866,7 @@ namespace AuroraFlasher.Services
                 if (_spiProtocol != null)
                 {
                     var progressHandler = CreateProgressHandler(progress);
-                    return await _spiProtocol.IsBlankAsync(address, length, progressHandler, cancellationToken);
+                    return await _spiProtocol.IsBlankAsync(address, length, progressHandler, retryCount: 0, cancellationToken: cancellationToken);
                 }
                 else
                 {
@@ -1076,7 +1076,7 @@ namespace AuroraFlasher.Services
                     Logger.Debug($"Verifying address 0x{addr:X6} ({count + 1}/{addresses.Count})...");
                     
                     // Read only 64 bytes for verification (much faster than 256)
-                    var readResult = await ReadMemoryAsync(addr, 64, null, cancellationToken);
+                    var readResult = await ReadMemoryAsync(addr, 64, null, retryCount: 0, cancellationToken: cancellationToken);
                     
                     var addressElapsed = DateTime.Now - addressStartTime;
                     Logger.Debug($"Address 0x{addr:X6} read completed in {addressElapsed.TotalMilliseconds:F1}ms");
@@ -1197,7 +1197,7 @@ namespace AuroraFlasher.Services
                 Logger.Info("Phase 2: Reading entire ROM to verify clearing...");
                 progressHandler?.Report(new ProgressInfo(0, 100, "Phase 2: Reading entire ROM to verify clearing..."));
 
-                var readResult = await ReadMemoryAsync(0, chipSize, progressHandler, cancellationToken);
+                var readResult = await ReadMemoryAsync(0, chipSize, progressHandler, retryCount: 0, cancellationToken: cancellationToken);
                 if (!readResult.Success)
                 {
                     Logger.Error($"Failed to read entire ROM: {readResult.Message}");
@@ -1292,6 +1292,7 @@ namespace AuroraFlasher.Services
         public async Task<OperationResult> FlashAsync(
             string filePath, 
             IProgress<ProgressInfo> progress = null, 
+            int retryCount = 0,
             CancellationToken cancellationToken = default)
         {
             try
@@ -1324,7 +1325,7 @@ namespace AuroraFlasher.Services
 
                 // 3. Write data using existing WriteMemoryAsync
                 var progressHandler = CreateProgressHandler(progress);
-                var writeResult = await WriteMemoryAsync(0, fileData, progressHandler, cancellationToken);
+                var writeResult = await WriteMemoryAsync(0, fileData, progressHandler, retryCount, cancellationToken);
 
                 if (writeResult.Success)
                 {
@@ -1356,6 +1357,7 @@ namespace AuroraFlasher.Services
         public async Task<OperationResult> FlashWithVerifyAsync(
             string filePath,
             IProgress<ProgressInfo> progress = null,
+            int retryCount = 0,
             CancellationToken cancellationToken = default)
         {
             try
@@ -1410,7 +1412,7 @@ namespace AuroraFlasher.Services
                     Logger.Debug($"Writing page at address 0x{currentAddress:X6}, size: {bytesInPage} bytes");
 
                     // Write page
-                    var writeResult = await _spiProtocol.WritePageAsync(currentAddress, pageData, cancellationToken);
+                    var writeResult = await _spiProtocol.WritePageAsync(currentAddress, pageData, retryCount, cancellationToken);
                     if (!writeResult.Success)
                     {
                         Logger.Error($"Page write failed at address 0x{currentAddress:X6}: {writeResult.Message}");
@@ -1420,7 +1422,7 @@ namespace AuroraFlasher.Services
                     Logger.Debug($"Page written successfully, now verifying...");
 
                     // Read back page for verification
-                    var readResult = await _spiProtocol.ReadAsync(currentAddress, bytesInPage, null, cancellationToken);
+                    var readResult = await _spiProtocol.ReadAsync(currentAddress, bytesInPage, null, retryCount, cancellationToken);
                     if (!readResult.Success)
                     {
                         Logger.Error($"Page read failed at address 0x{currentAddress:X6}: {readResult.Message}");

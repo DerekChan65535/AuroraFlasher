@@ -54,24 +54,24 @@ namespace AuroraFlasher.Interfaces
         /// <summary>
         /// Read data from memory
         /// </summary>
-        Task<OperationResult<byte[]>> ReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default);
+        Task<OperationResult<byte[]>> ReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Fast read (if supported)
         /// </summary>
-        Task<OperationResult<byte[]>> FastReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default);
+        Task<OperationResult<byte[]>> FastReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default);
 
         // Write Operations
         
         /// <summary>
         /// Write data to memory (with automatic page handling)
         /// </summary>
-        Task<OperationResult> WriteAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default);
+        Task<OperationResult> WriteAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Write page (single page only, no boundary checking)
         /// </summary>
-        Task<OperationResult> WritePageAsync(uint address, byte[] data, CancellationToken cancellationToken = default);
+        Task<OperationResult> WritePageAsync(uint address, byte[] data, int retryCount = 0, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// SST AAI byte program
@@ -181,11 +181,11 @@ namespace AuroraFlasher.Interfaces
         /// <summary>
         /// Verify data matches memory contents
         /// </summary>
-        Task<OperationResult<bool>> VerifyAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default);
+        Task<OperationResult<bool>> VerifyAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Check if range is blank (all 0xFF)
         /// </summary>
-        Task<OperationResult<bool>> IsBlankAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default);
+        Task<OperationResult<bool>> IsBlankAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default);
     }
 }

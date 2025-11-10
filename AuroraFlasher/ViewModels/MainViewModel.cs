@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -20,6 +21,7 @@ namespace AuroraFlasher.ViewModels
     public class MainViewModel : ViewModelBase
     {
         private readonly ProgrammerService _service;
+        private readonly int _retryCount;
         private CancellationTokenSource _cancellationTokenSource;
 
         // Known VID for WCH (CH341 manufacturer)
@@ -273,6 +275,24 @@ namespace AuroraFlasher.ViewModels
         {
             Logger.Debug("[MainViewModel] Constructor started");
             _service = new ProgrammerService();
+            var retrySetting = ConfigurationManager.AppSettings["RetryCount"];
+            if (!int.TryParse(retrySetting, out var retryCount) || retryCount < 0)
+            {
+                _retryCount = 0;
+                if (!string.IsNullOrWhiteSpace(retrySetting))
+                {
+                    Logger.Warn($"[MainViewModel] Invalid RetryCount '{retrySetting}', defaulting to 0 (no retries)");
+                }
+                else
+                {
+                    Logger.Debug("[MainViewModel] RetryCount not configured, defaulting to 0 (no retries)");
+                }
+            }
+            else
+            {
+                _retryCount = retryCount;
+                Logger.Debug($"[MainViewModel] RetryCount configured: {_retryCount}");
+            }
             AvailableDevices = new ObservableCollection<IHardware>();
 
             // Initialize properties
@@ -570,7 +590,12 @@ namespace AuroraFlasher.ViewModels
                     StatusMessage = $"Reading... {progressInfo.Percentage:F0}%";
                 });
 
-                var result = await _service.ReadMemoryAsync(address, length, progress, _cancellationTokenSource.Token);
+                var result = await _service.ReadMemoryAsync(
+                    address,
+                    length,
+                    progress,
+                    _retryCount,
+                    cancellationToken: _cancellationTokenSource.Token);
 
                 if (result.Success && result.Data != null)
                 {
@@ -776,7 +801,11 @@ namespace AuroraFlasher.ViewModels
                     StatusMessage = $"Flashing... {progressInfo.Percentage:F0}%";
                 });
 
-                var flashResult = await _service.FlashAsync(filePath, progress, _cancellationTokenSource.Token);
+                var flashResult = await _service.FlashAsync(
+                    filePath,
+                    progress,
+                    retryCount: _retryCount,
+                    cancellationToken: _cancellationTokenSource.Token);
 
                 if (flashResult.Success)
                 {
@@ -864,7 +893,11 @@ namespace AuroraFlasher.ViewModels
                     StatusMessage = $"Flashing with verify... {progressInfo.Percentage:F0}%";
                 });
 
-                var flashResult = await _service.FlashWithVerifyAsync(filePath, progress, _cancellationTokenSource.Token);
+                var flashResult = await _service.FlashWithVerifyAsync(
+                    filePath,
+                    progress,
+                    retryCount: _retryCount,
+                    cancellationToken: _cancellationTokenSource.Token);
 
                 if (flashResult.Success)
                 {

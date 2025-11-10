@@ -182,7 +182,7 @@ namespace AuroraFlasher.Protocols
 
         #region Read Operations
 
-        public async Task<OperationResult<byte[]>> ReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        public async Task<OperationResult<byte[]>> ReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -214,14 +214,70 @@ namespace AuroraFlasher.Protocols
                         ? new byte[] { CMD_READ_DATA, (byte)(currentAddress >> 24), (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress }
                         : new byte[] { CMD_READ_DATA, (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress };
 
-                    var chunkStartTime = DateTime.Now;
-                    var result = await _hardware.SpiTransferAsync(cmd, toRead, cancellationToken);
-                    var chunkElapsed = DateTime.Now - chunkStartTime;
-                    
-                    Logger.Debug($"Chunk read completed in {chunkElapsed.TotalMilliseconds:F1}ms");
-                    
-                    if (!result.Success)
-                        return OperationResult<byte[]>.FailureResult($"Read failed at address 0x{currentAddress:X6}: {result.Message}");
+                    OperationResult<byte[]> result = null;
+                    Exception lastException = null;
+
+                    for (var attempt = 0; attempt <= retryCount; attempt++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var attemptNumber = attempt + 1;
+                        if (attempt > 0)
+                        {
+                            Logger.Warn($"Retrying read chunk at address 0x{currentAddress:X6} (attempt {attemptNumber}/{retryCount + 1})");
+                        }
+
+                        try
+                        {
+                            var chunkStartTime = DateTime.Now;
+                            result = await _hardware.SpiTransferAsync(cmd, toRead, cancellationToken);
+                            var chunkElapsed = DateTime.Now - chunkStartTime;
+
+                            if (result.Success)
+                            {
+                                Logger.Debug($"Chunk read completed in {chunkElapsed.TotalMilliseconds:F1}ms (attempt {attemptNumber})");
+                                break;
+                            }
+
+                            Logger.Warn($"Read chunk failed at address 0x{currentAddress:X6} (attempt {attemptNumber}/{retryCount + 1}): {result.Message}");
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            lastException = ex;
+                            Logger.Warn(ex, $"Read chunk threw exception at address 0x{currentAddress:X6} on attempt {attemptNumber}/{retryCount + 1}");
+                            result = OperationResult<byte[]>.FailureResult($"Read chunk exception: {ex.Message}", ex);
+                        }
+
+                        if (result?.Success == true)
+                        {
+                            break;
+                        }
+
+                        if (attempt == retryCount)
+                        {
+                            if (lastException != null)
+                            {
+                                return OperationResult<byte[]>.FailureResult(
+                                    $"Read failed at address 0x{currentAddress:X6}: {lastException.Message}",
+                                    lastException);
+                            }
+
+                            return OperationResult<byte[]>.FailureResult(
+                                $"Read failed at address 0x{currentAddress:X6}: {result?.Message ?? "Unknown error"}",
+                                result?.Exception);
+                        }
+                    }
+
+                    if (result == null || !result.Success)
+                    {
+                        return OperationResult<byte[]>.FailureResult(
+                            $"Read failed at address 0x{currentAddress:X6}: {result?.Message ?? "Unknown error"}",
+                            result?.Exception);
+                    }
 
                     Array.Copy(result.Data, 0, data, bytesRead, toRead);
                     bytesRead += toRead;
@@ -251,7 +307,7 @@ namespace AuroraFlasher.Protocols
             }
         }
 
-        public async Task<OperationResult<byte[]>> FastReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        public async Task<OperationResult<byte[]>> FastReadAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -280,9 +336,68 @@ namespace AuroraFlasher.Protocols
                         ? new byte[] { CMD_FAST_READ, (byte)(currentAddress >> 24), (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress, 0x00 }
                         : new byte[] { CMD_FAST_READ, (byte)(currentAddress >> 16), (byte)(currentAddress >> 8), (byte)currentAddress, 0x00 };
 
-                    var result = await _hardware.SpiTransferAsync(cmd, toRead, cancellationToken);
-                    if (!result.Success)
-                        return OperationResult<byte[]>.FailureResult($"Fast read failed at address 0x{currentAddress:X6}: {result.Message}");
+                    OperationResult<byte[]> result = null;
+                    Exception lastException = null;
+
+                    for (var attempt = 0; attempt <= retryCount; attempt++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var attemptNumber = attempt + 1;
+
+                        if (attempt > 0)
+                        {
+                            Logger.Warn($"Retrying fast read chunk at address 0x{currentAddress:X6} (attempt {attemptNumber}/{retryCount + 1})");
+                        }
+
+                        try
+                        {
+                            result = await _hardware.SpiTransferAsync(cmd, toRead, cancellationToken);
+
+                            if (result.Success)
+                            {
+                                Logger.Debug($"Fast read chunk succeeded at address 0x{currentAddress:X6} on attempt {attemptNumber}");
+                                break;
+                            }
+
+                            Logger.Warn($"Fast read chunk failed at address 0x{currentAddress:X6} (attempt {attemptNumber}/{retryCount + 1}): {result.Message}");
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            lastException = ex;
+                            Logger.Warn(ex, $"Fast read chunk threw exception at address 0x{currentAddress:X6} on attempt {attemptNumber}/{retryCount + 1}");
+                            result = OperationResult<byte[]>.FailureResult($"Fast read chunk exception: {ex.Message}", ex);
+                        }
+
+                        if (result?.Success == true)
+                        {
+                            break;
+                        }
+
+                        if (attempt == retryCount)
+                        {
+                            if (lastException != null)
+                            {
+                                return OperationResult<byte[]>.FailureResult(
+                                    $"Fast read failed at address 0x{currentAddress:X6}: {lastException.Message}",
+                                    lastException);
+                            }
+
+                            return OperationResult<byte[]>.FailureResult(
+                                $"Fast read failed at address 0x{currentAddress:X6}: {result?.Message ?? "Unknown error"}",
+                                result?.Exception);
+                        }
+                    }
+
+                    if (result == null || !result.Success)
+                    {
+                        return OperationResult<byte[]>.FailureResult(
+                            $"Fast read failed at address 0x{currentAddress:X6}: {result?.Message ?? "Unknown error"}",
+                            result?.Exception);
+                    }
 
                     Array.Copy(result.Data, 0, data, bytesRead, toRead);
                     bytesRead += toRead;
@@ -311,7 +426,7 @@ namespace AuroraFlasher.Protocols
 
         #region Write Operations
 
-        public async Task<OperationResult> WriteAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        public async Task<OperationResult> WriteAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -342,7 +457,7 @@ namespace AuroraFlasher.Protocols
                     Array.Copy(data, bytesWritten, pageData, 0, bytesInPage);
 
                     // Write page
-                    var result = await WritePageAsync(currentAddress, pageData, cancellationToken);
+                    var result = await WritePageAsync(currentAddress, pageData, retryCount, cancellationToken);
                     if (!result.Success)
                         return OperationResult.FailureResult($"Write failed at address 0x{currentAddress:X6}: {result.Message}");
 
@@ -372,43 +487,84 @@ namespace AuroraFlasher.Protocols
             }
         }
 
-        public async Task<OperationResult> WritePageAsync(uint address, byte[] data, CancellationToken cancellationToken = default)
+        public async Task<OperationResult> WritePageAsync(uint address, byte[] data, int retryCount = 0, CancellationToken cancellationToken = default)
         {
-            try
+            if (data == null || data.Length == 0)
+                return OperationResult.FailureResult("No data to write");
+
+            OperationResult lastFailure = null;
+
+            for (var attempt = 0; attempt <= retryCount; attempt++)
             {
-                if (data == null || data.Length == 0)
-                    return OperationResult.FailureResult("No data to write");
+                cancellationToken.ThrowIfCancellationRequested();
+                var attemptNumber = attempt + 1;
 
-                // Write enable
-                var wenResult = await WriteEnableAsync(cancellationToken);
-                if (!wenResult.Success)
-                    return wenResult;
+                if (attempt > 0)
+                {
+                    Logger.Warn($"Retrying page write at address 0x{address:X6} (attempt {attemptNumber}/{retryCount + 1})");
+                }
 
-                // Build page program command with address
-                var cmd = _is4ByteMode
-                    ? new byte[] { CMD_PAGE_PROGRAM, (byte)(address >> 24), (byte)(address >> 16), (byte)(address >> 8), (byte)address }
-                    : new byte[] { CMD_PAGE_PROGRAM, (byte)(address >> 16), (byte)(address >> 8), (byte)address };
+                try
+                {
+                    // Write enable
+                    var wenResult = await WriteEnableAsync(cancellationToken);
+                    if (!wenResult.Success)
+                    {
+                        Logger.Warn($"Write enable failed at address 0x{address:X6} (attempt {attemptNumber}/{retryCount + 1}): {wenResult.Message}");
+                        lastFailure = OperationResult.FailureResult(
+                            $"Write enable failed at address 0x{address:X6}: {wenResult.Message}",
+                            wenResult.Exception);
+                        continue;
+                    }
 
-                // Combine command and data
-                var fullCmd = new byte[cmd.Length + data.Length];
-                Array.Copy(cmd, 0, fullCmd, 0, cmd.Length);
-                Array.Copy(data, 0, fullCmd, cmd.Length, data.Length);
+                    // Build page program command with address
+                    var cmd = _is4ByteMode
+                        ? new byte[] { CMD_PAGE_PROGRAM, (byte)(address >> 24), (byte)(address >> 16), (byte)(address >> 8), (byte)address }
+                        : new byte[] { CMD_PAGE_PROGRAM, (byte)(address >> 16), (byte)(address >> 8), (byte)address };
 
-                var writeResult = await _hardware.SpiWriteAsync(fullCmd, cancellationToken);
-                if (!writeResult.Success)
-                    return writeResult;
+                    // Combine command and data
+                    var fullCmd = new byte[cmd.Length + data.Length];
+                    Array.Copy(cmd, 0, fullCmd, 0, cmd.Length);
+                    Array.Copy(data, 0, fullCmd, cmd.Length, data.Length);
 
-                // Wait for write to complete
-                var waitResult = await WaitNotBusyAsync(5000, cancellationToken);
-                if (!waitResult.Success)
-                    return waitResult;
+                    var writeResult = await _hardware.SpiWriteAsync(fullCmd, cancellationToken);
+                    if (!writeResult.Success)
+                    {
+                        Logger.Warn($"Page write failed at address 0x{address:X6} (attempt {attemptNumber}/{retryCount + 1}): {writeResult.Message}");
+                        lastFailure = OperationResult.FailureResult(
+                            $"Page write failed at address 0x{address:X6}: {writeResult.Message}",
+                            writeResult.Exception);
+                        continue;
+                    }
 
-                return OperationResult.SuccessResult($"Wrote page at 0x{address:X6}");
+                    // Wait for write to complete
+                    var waitResult = await WaitNotBusyAsync(5000, cancellationToken);
+                    if (!waitResult.Success)
+                    {
+                        Logger.Warn($"Wait for not-busy failed at address 0x{address:X6} (attempt {attemptNumber}/{retryCount + 1}): {waitResult.Message}");
+                        lastFailure = OperationResult.FailureResult(
+                            $"Device busy after write at address 0x{address:X6}: {waitResult.Message}",
+                            waitResult.Exception);
+                        continue;
+                    }
+
+                    Logger.Debug($"Page write succeeded at address 0x{address:X6} on attempt {attemptNumber}");
+                    return OperationResult.SuccessResult($"Wrote page at 0x{address:X6}");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, $"Page write threw exception at address 0x{address:X6} on attempt {attemptNumber}/{retryCount + 1}");
+                    lastFailure = OperationResult.FailureResult(
+                        $"Page write failed at address 0x{address:X6}: {ex.Message}",
+                        ex);
+                }
             }
-            catch (Exception ex)
-            {
-                return OperationResult.FailureResult($"Page write failed: {ex.Message}", ex);
-            }
+
+            return lastFailure ?? OperationResult.FailureResult($"Page write failed at address 0x{address:X6}: Unknown error");
         }
 
         public async Task<OperationResult> AaiByteWriteAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
@@ -971,11 +1127,11 @@ namespace AuroraFlasher.Protocols
 
         #region Verification
 
-        public async Task<OperationResult<bool>> VerifyAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        public async Task<OperationResult<bool>> VerifyAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default)
         {
             try
             {
-                var readResult = await ReadAsync(address, data.Length, progress, cancellationToken);
+                var readResult = await ReadAsync(address, data.Length, progress, retryCount, cancellationToken);
                 if (!readResult.Success)
                     return OperationResult<bool>.FailureResult($"Verify failed: could not read data - {readResult.Message}");
 
@@ -1002,11 +1158,11 @@ namespace AuroraFlasher.Protocols
             }
         }
 
-        public async Task<OperationResult<bool>> IsBlankAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default)
+        public async Task<OperationResult<bool>> IsBlankAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default)
         {
             try
             {
-                var readResult = await ReadAsync(address, length, progress, cancellationToken);
+                var readResult = await ReadAsync(address, length, progress, retryCount, cancellationToken);
                 if (!readResult.Success)
                     return OperationResult<bool>.FailureResult($"Blank check failed: could not read data - {readResult.Message}");
 

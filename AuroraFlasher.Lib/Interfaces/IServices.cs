@@ -72,12 +72,12 @@ namespace AuroraFlasher.Interfaces
         /// <summary>
         /// Read memory to byte array
         /// </summary>
-        Task<OperationResult<byte[]>> ReadMemoryAsync(uint address, int length, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default);
+        Task<OperationResult<byte[]>> ReadMemoryAsync(uint address, int length, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Write memory from byte array
         /// </summary>
-        Task<OperationResult> WriteMemoryAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default);
+        Task<OperationResult> WriteMemoryAsync(uint address, byte[] data, IProgress<ProgressInfo> progress = null, int retryCount = 0, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Verify memory contents
